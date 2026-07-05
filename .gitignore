@@ -8,3 +8,5 @@ logs/
 *.log
 .venv/
 venv/
+node_modules/
+web/dist/

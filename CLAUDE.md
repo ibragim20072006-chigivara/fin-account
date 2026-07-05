@@ -1,23 +1,25 @@
-# fin-account
+# fin-account · Карьер-менеджер
 
-Финансовый/бухгалтерский инструмент.
+Учёт первичных документов карьера: съёмка → распознавание ИИ → проверка в веб-очереди → выгрузка в учёт .xlsx → отчёты ОПиУ/ДДС.
 
 ## Стек
-- Python
-- openpyxl (работа с Excel)
+- Frontend: React + Vite в `web/` (без UI-фреймворка, стили в `web/src/styles.css` с токенами из дизайн-хэндоффа)
+- Python + openpyxl в `src/` — выгрузка .xlsx по маппингу «шаблон_учёт.xlsx»
 
 ## Структура
-- `src/` — исходный код
-- `data/` — входные Excel/CSV файлы (в .gitignore)
-- `output/` — результаты (в .gitignore)
+- `web/src/data.js` — мок-данные (модель: Document, Line, Category, ExportTemplate)
+- `web/src/state.jsx` — стор (React context) и действия
+- `web/src/screens/` — экраны: Queue, Reports, Categories, Templates, Settings + mobile/
+- `src/export_xlsx.py`, `src/main.py` — выгрузка (демо: `py src/main.py`)
+- `data/`, `output/` — в .gitignore
 
 ## Запуск
-```
-python src/main.py
-```
+- Веб: `cd web && npm run dev`
+- Python: `py src/main.py` (на машине рабочий интерпретатор — `py`, не `python`)
 
-## Конфигурация
-Скопировать `.env.example` → `.env` и заполнить пути.
+## Конвенции
+- Дизайн-референс: пакет design_handoff_karier_manager (hi-fi, 9 экранов) — при правках UI сверяться с токенами
+- Мобильная версия — адаптив того же приложения (breakpoint 768px), не отдельный код
 
 ## Ветки
 - `main` — стабильная версия
