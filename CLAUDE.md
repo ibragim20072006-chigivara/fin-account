@@ -10,7 +10,7 @@
 - `web/src/data.js` — стартовое состояние (пустое: без демо-данных) + `EXPORT_COLUMNS` (схема CSV) и `ROLES`
 - `web/src/state.jsx` — стор (React context), действия, `computeReports` (отчёты агрегируются из отгруженных документов)
 - `web/src/auth.js` — пользователи/сессия в localStorage; `web/src/export.js` — CSV-выгрузка
-- `web/src/screens/` — экраны: Register, Queue, Reports, Categories, Templates, Settings + mobile/
+- `web/src/screens/` — экраны: Register, Queue, Reports, Categories, Templates, Settings, Guide (руководство) + mobile/
 - `src/export_xlsx.py`, `src/main.py` — выгрузка; `main.py` читает вход из `data/documents.json` (`py src/main.py`)
 - `data/`, `output/` — в .gitignore
 

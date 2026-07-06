@@ -8,6 +8,7 @@ const NAV = [
   { id: 'categories', label: 'Категории' },
   { id: 'templates', label: 'Шаблоны' },
   { id: 'settings', label: 'Настройки' },
+  { id: 'guide', label: 'Руководство' },
 ]
 
 export default function Sidebar() {

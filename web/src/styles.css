@@ -762,6 +762,74 @@ button.legend-row:hover { background: var(--thead-bg); }
 .nd-remove:disabled { opacity: .4; cursor: default; }
 .nd-addline { align-self: flex-start; }
 
+/* ===== Руководство ===== */
+.guide { max-width: 940px; }
+.guide-head { margin-bottom: 6px; }
+.guide-lede { font-size: 14px; color: var(--text-2); margin: 8px 0 0; max-width: 64ch; line-height: 1.55; }
+.guide-roles { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.guide-role {
+  display: flex; align-items: baseline; gap: 7px; font-size: 12.5px;
+  background: #fff; border: 1px solid var(--border); border-radius: 999px; padding: 6px 13px;
+}
+.guide-role b { font-weight: 600; }
+.guide-role span { color: var(--text-3); }
+
+.guide .section-label { display: block; margin: 26px 0 12px; }
+
+.guide-flow { display: flex; flex-direction: column; }
+.guide-stage {
+  display: grid; grid-template-columns: 44px 1fr; gap: 16px;
+  padding: 16px 18px; align-items: start;
+}
+.guide-num {
+  width: 38px; height: 38px; border-radius: 50%; flex: none;
+  display: grid; place-items: center; font: 600 16px var(--font-mono); font-variant-numeric: tabular-nums;
+  background: var(--primary-bg); color: var(--primary-hover); border: 1px solid var(--primary-border);
+}
+.guide-stage-head { display: flex; align-items: flex-start; gap: 10px; }
+.guide-stage-head .chip { margin-left: auto; flex: none; }
+.guide-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--primary-hover); }
+.guide-stage-title { font-size: 16px; font-weight: 600; margin-top: 3px; }
+.guide-stage-text { font-size: 13.5px; color: var(--text-2); margin: 6px 0 0; line-height: 1.5; }
+.guide-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 11px; }
+.guide-method {
+  font-size: 12px; color: var(--text-2); border: 1px dashed var(--ctl-border);
+  border-radius: 999px; padding: 2.5px 10px; white-space: nowrap;
+}
+.guide-then { color: var(--text-3); }
+.guide-arrow { display: grid; place-items: center; height: 22px; color: var(--primary); opacity: .5; }
+
+.guide-branch { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+.guide-branch-box { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; background: var(--thead-bg); }
+.guide-bb-title { font-size: 13.5px; font-weight: 600; display: flex; align-items: center; gap: 7px; }
+.guide-dot { width: 8px; height: 8px; border-radius: 2px; background: var(--primary); flex: none; }
+.guide-branch-box p { font-size: 12.5px; color: var(--text-2); margin: 5px 0 0; line-height: 1.45; }
+
+.guide-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+.guide-card { padding: 16px 18px; }
+.guide-card-icon {
+  width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center;
+  background: var(--primary-bg); color: var(--primary-hover); border: 1px solid var(--primary-border);
+  font-size: 15px; margin-bottom: 11px;
+}
+.guide-card h3 { font-size: 14.5px; font-weight: 600; margin: 0 0 6px; }
+.guide-card p { font-size: 12.5px; color: var(--text-2); margin: 0; line-height: 1.45; }
+
+.guide-notes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.guide-note {
+  border: 1px solid var(--border); border-left: 3px solid var(--primary);
+  border-radius: 8px; padding: 12px 15px; background: var(--thead-bg);
+}
+.guide-note h4 { font-size: 12.5px; font-weight: 700; margin: 0 0 4px; }
+.guide-note p { font-size: 12.5px; color: var(--text-2); margin: 0; line-height: 1.45; }
+
+.guide-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--divider); }
+.guide-legend-item { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-2); }
+
+@media (max-width: 767px) {
+  .guide-branch, .guide-notes { grid-template-columns: 1fr; }
+}
+
 /* ===== Редактор колонок шаблона ===== */
 .col-editor { display: flex; flex-direction: column; gap: 8px; }
 .ce-row {
