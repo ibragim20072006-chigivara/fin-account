@@ -7,6 +7,7 @@ import Reports from './screens/Reports.jsx'
 import Categories from './screens/Categories.jsx'
 import Templates from './screens/Templates.jsx'
 import Settings from './screens/Settings.jsx'
+import Register from './screens/Register.jsx'
 import Capture from './screens/mobile/Capture.jsx'
 import MobileReports from './screens/mobile/MobileReports.jsx'
 
@@ -29,22 +30,24 @@ function Desktop() {
   )
 }
 
-const TABS = [
-  { id: 'capture', label: 'Съёмка', Icon: Camera },
+const CAPTURE_TAB = { id: 'capture', label: 'Съёмка', Icon: Camera }
+const BASE_TABS = [
   { id: 'queue', label: 'Очередь', Icon: Inbox },
   { id: 'reports', label: 'Отчёты', Icon: BarChart3 },
 ]
 
 function Mobile() {
+  const { canEdit } = useApp()
+  const tabs = canEdit ? [CAPTURE_TAB, ...BASE_TABS] : BASE_TABS
   const [tab, setTab] = useState('queue')
   const dark = tab === 'capture'
   return (
     <div className={`mobile ${dark ? 'dark' : 'light'}`}>
-      {tab === 'capture' && <Capture onOpenQueue={() => setTab('queue')} />}
+      {tab === 'capture' && canEdit && <Capture onOpenQueue={() => setTab('queue')} />}
       {tab === 'queue' && <QueueList mobile />}
       {tab === 'reports' && <MobileReports />}
       <div className="tabbar">
-        {TABS.map(({ id, label, Icon }) => (
+        {tabs.map(({ id, label, Icon }) => (
           <button key={id} className={`tab${tab === id ? ' active' : ''}`} onClick={() => setTab(id)}>
             <Icon size={22} strokeWidth={1.5} />
             <div className="tab-label">{label}</div>
@@ -56,7 +59,17 @@ function Mobile() {
 }
 
 export default function App() {
-  const { toast } = useApp()
+  const { currentUser, toast } = useApp()
+
+  if (!currentUser) {
+    return (
+      <>
+        <Register />
+        {toast && <div className="toast">{toast}</div>}
+      </>
+    )
+  }
+
   return (
     <>
       <Desktop />

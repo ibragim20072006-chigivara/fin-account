@@ -1,8 +1,6 @@
 import { createContext, useContext, useMemo, useState } from 'react'
-import {
-  initialDocuments, initialCategories, initialTemplates,
-  initialNotifications, aiSuggestion,
-} from './data.js'
+import { initialDocuments, initialCategories, initialTemplates, aiSuggestion, ROLES } from './data.js'
+import { loadUsers, saveUsers, loadSession, saveSession, newId } from './auth.js'
 
 const AppContext = createContext(null)
 
@@ -28,17 +26,77 @@ export function docTotal(doc) {
   return { total, unknown }
 }
 
+const CHART_PALETTE = [
+  'var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)',
+  'var(--chart-5)', 'var(--chart-g1)', 'var(--chart-g2)', 'var(--chart-g3)',
+]
+
+function groupByCategory(shipped, kindByName, kind) {
+  const sums = new Map()
+  for (const doc of shipped) {
+    for (const l of doc.lines) {
+      if (l.sum == null || kindByName[l.category] !== kind) continue
+      sums.set(l.category, (sums.get(l.category) ?? 0) + l.sum)
+    }
+  }
+  const items = [...sums.entries()].map(([name, sum]) => ({ name, sum })).sort((a, b) => b.sum - a.sum)
+  const total = items.reduce((s, i) => s + i.sum, 0)
+  return items.map((it, i) => ({
+    ...it,
+    pct: total ? Math.round((it.sum / total) * 100) : 0,
+    color: CHART_PALETTE[i % CHART_PALETTE.length],
+    docs: docsForCategory(shipped, it.name),
+  }))
+}
+
+function docsForCategory(shipped, name) {
+  const out = []
+  for (const doc of shipped) {
+    const sum = doc.lines.filter((l) => l.category === name && l.sum != null).reduce((s, l) => s + l.sum, 0)
+    if (sum > 0) out.push({ date: doc.date ?? '', name: doc.title, who: doc.uploadedBy ?? '', sum, queueId: doc.id })
+  }
+  return out
+}
+
+// Отчёты агрегируются из отгруженных документов и категорий (kind: доход/расход).
+export function computeReports(documents, categories) {
+  const kindByName = {}
+  for (const c of categories) kindByName[c.name] = c.kind
+  const shipped = documents.filter((d) => d.status === 'shipped')
+
+  const receipts = groupByCategory(shipped, kindByName, 'income')
+  const payments = groupByCategory(shipped, kindByName, 'expense')
+  const revenue = receipts.reduce((s, i) => s + i.sum, 0)
+  const expensesTotal = payments.reduce((s, i) => s + i.sum, 0)
+
+  return {
+    hasData: revenue > 0 || expensesTotal > 0,
+    shippedCount: shipped.length,
+    opu: { revenue, expensesTotal, profit: revenue - expensesTotal, expenses: payments },
+    dds: { inflow: revenue, outflow: expensesTotal, receipts, payments },
+  }
+}
+
 export function AppProvider({ children }) {
   const [screen, setScreen] = useState('queue')
   const [documents, setDocuments] = useState(initialDocuments)
-  const [selectedDocId, setSelectedDocId] = useState('d214')
+  const [selectedDocId, setSelectedDocId] = useState(null)
   const [categories, setCategories] = useState(initialCategories)
-  const [selectedCategoryId, setSelectedCategoryId] = useState('fuel')
+  const [selectedCategoryId, setSelectedCategoryId] = useState(null)
   const [templates] = useState(initialTemplates)
   const [suggestion, setSuggestion] = useState(aiSuggestion)
-  const [notifications, setNotifications] = useState(initialNotifications)
-  const [exportMode, setExportMode] = useState('instant')
   const [toast, setToast] = useState(null)
+
+  const [users, setUsers] = useState(loadUsers)
+  const [sessionUserId, setSessionUserId] = useState(loadSession)
+
+  const currentUser = users.find((u) => u.id === sessionUserId) ?? null
+  const role = currentUser ? ROLES[currentUser.role] ?? ROLES.viewer : null
+  const canEdit = !!role?.canEdit
+  const isAdmin = !!role?.isAdmin
+
+  const persistUsers = (next) => { setUsers(next); saveUsers(next) }
+  const persistSession = (id) => { setSessionUserId(id); saveSession(id) }
 
   const showToast = (text) => {
     setToast(text)
@@ -46,8 +104,39 @@ export function AppProvider({ children }) {
     showToast._t = window.setTimeout(() => setToast(null), 3200)
   }
 
-  const resolveLine = (docId, lineId, price, by = 'Мария') => {
+  const register = ({ name, role: chosen }) => {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    // Первый пользователь всегда администратор — чтобы было кому управлять доступом.
+    const finalRole = users.length === 0 ? 'admin' : (ROLES[chosen] ? chosen : 'viewer')
+    const user = { id: newId(), name: trimmed, role: finalRole }
+    persistUsers([...users, user])
+    persistSession(user.id)
+  }
+
+  const login = (userId) => persistSession(userId)
+  const logout = () => persistSession(null)
+
+  const addUser = ({ name, role: chosen }) => {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    const user = { id: newId(), name: trimmed, role: ROLES[chosen] ? chosen : 'viewer' }
+    persistUsers([...users, user])
+    showToast(`Пользователь «${trimmed}» добавлен`)
+  }
+
+  const setUserRole = (userId, nextRole) => {
+    persistUsers(users.map((u) => (u.id === userId ? { ...u, role: nextRole } : u)))
+  }
+
+  const removeUser = (userId) => {
+    persistUsers(users.filter((u) => u.id !== userId))
+    if (userId === sessionUserId) persistSession(null)
+  }
+
+  const resolveLine = (docId, lineId, price) => {
     const at = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+    const by = currentUser?.name ?? ''
     setDocuments((docs) => docs.map((d) => {
       if (d.id !== docId) return d
       const lines = d.lines.map((l) => {
@@ -61,7 +150,7 @@ export function AppProvider({ children }) {
 
   const shipDoc = (docId) => {
     setDocuments((docs) => docs.map((d) => (d.id === docId ? { ...d, status: 'shipped' } : d)))
-    showToast('Документ отгружен в учёт — шаблон_учёт.xlsx отправлен')
+    showToast('Документ отгружён в учёт')
   }
 
   const shipReady = () => {
@@ -97,8 +186,7 @@ export function AppProvider({ children }) {
       id: 'rent', kind: 'expense', name: suggestion.name, account: '60.01',
       linesMonth: suggestion.lines.length,
       sumMonth: suggestion.lines.reduce((s, l) => s + l.sum, 0),
-      keywords: ['аренда', 'экскаватор', 'бульдозер', 'автокран'],
-      threshold: 90,
+      keywords: [], threshold: 90,
       matches: suggestion.lines.map((l) => ({ text: l.text, doc: l.doc, pct: 93 })),
     }
     setCategories((cats) => [...cats, cat])
@@ -107,22 +195,18 @@ export function AppProvider({ children }) {
     showToast(`Категория «${cat.name}» создана`)
   }
 
-  const toggleNotification = (id) => {
-    setNotifications((ns) => ns.map((n) => (n.id === id ? { ...n, on: !n.on } : n)))
-  }
-
   const value = useMemo(() => ({
     screen, setScreen,
     documents, selectedDocId, setSelectedDocId,
     categories, selectedCategoryId, setSelectedCategoryId,
     templates, suggestion, setSuggestion,
-    notifications, toggleNotification,
-    exportMode, setExportMode,
+    users, currentUser, role, canEdit, isAdmin,
+    register, login, logout, addUser, setUserRole, removeUser,
     resolveLine, shipDoc, shipReady, openDocInQueue,
     addKeyword, setThreshold, createSuggestedCategory,
     toast, showToast,
   }), [screen, documents, selectedDocId, categories, selectedCategoryId,
-    templates, suggestion, notifications, exportMode, toast])
+    templates, suggestion, users, sessionUserId, toast])
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }

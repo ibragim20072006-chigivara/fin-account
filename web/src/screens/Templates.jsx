@@ -2,17 +2,17 @@ import { useState } from 'react'
 import { useApp } from '../state.jsx'
 
 export default function Templates() {
-  const { templates, showToast } = useApp()
+  const { templates, showToast, canEdit } = useApp()
   const [selectedId, setSelectedId] = useState(templates[0].id)
-  const tpl = templates.find((t) => t.id === selectedId)
+  const tpl = templates.find((t) => t.id === selectedId) ?? templates[0]
 
   return (
     <div className="page">
       <div className="page-head">
         <div className="page-title">Шаблоны выгрузки</div>
-        <div className="page-sub">формат, в котором отгрузки уходят в учёт</div>
+        <div className="page-sub">формат, в котором отгрузки скачиваются в учёт</div>
         <div className="spacer" />
-        <button className="btn-outline-blue" onClick={() => showToast('Загрузите файл-образец — колонки распознаются автоматически')}>+ шаблон из файла</button>
+        {canEdit && <button className="btn-outline-blue" onClick={() => showToast('Загрузите файл-образец — колонки распознаются автоматически')}>+ шаблон из файла</button>}
       </div>
 
       <div className="split">
@@ -20,13 +20,12 @@ export default function Templates() {
           {templates.map((t) => (
             <button
               key={t.id}
-              className={`tpl-row${t.id === selectedId ? ' selected' : ''}${t.archived ? ' archived' : ''}`}
+              className={`tpl-row${t.id === selectedId ? ' selected' : ''}`}
               onClick={() => setSelectedId(t.id)}
             >
               <div className="tpl-row-top">
                 <div className="tpl-row-name">{t.name}</div>
                 {t.badge === 'основной' && <span className="chip success green-sm">основной</span>}
-                {t.badge === 'архив' && <span className="chip muted green-sm">архив</span>}
               </div>
               <div className="tpl-row-meta">{t.meta}</div>
             </button>
@@ -38,7 +37,7 @@ export default function Templates() {
             <div className="detail-title">{tpl.name}</div>
             <div className="page-sub">{tpl.description}</div>
             <div className="spacer" />
-            <button className="btn-ghost sm" onClick={() => showToast('Выберите новый файл шаблона — маппинг сохранится')}>заменить файл</button>
+            {canEdit && <button className="btn-ghost sm" onClick={() => showToast('Выберите новый файл шаблона — маппинг сохранится')}>заменить файл</button>}
           </div>
 
           <div className="map-table">
@@ -46,24 +45,19 @@ export default function Templates() {
               <div>КОЛОНКА ШАБЛОНА</div>
               <div>ОТКУДА БЕРЁТСЯ</div>
             </div>
-            {tpl.mapping.map(([col, src]) => (
-              <div key={col} className="map-row">
-                <div className="map-col">{col}</div>
+            {tpl.columns.map((col, i) => (
+              <div key={col.key} className="map-row">
+                <div className="map-col">{String.fromCharCode(65 + i)} · {col.label}</div>
                 <div className="map-src">
-                  {src.includes('настроен в категориях')
+                  {col.key === 'account'
                     ? <>счёт категории (<a href="#категории">настроен в категориях</a>)</>
-                    : src}
+                    : col.source}
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="field">
-            <div className="section-label">КАК ВЫГЛЯДИТ СТРОКА · НАКЛАДНАЯ №214</div>
-            <div className="example-box" style={{ marginTop: 8 }}>{tpl.example}</div>
-          </div>
-
-          <div className="detail-foot">{tpl.footer}</div>
+          <div className="detail-foot">отгрузки скачиваются в этом формате одним CSV-файлом</div>
         </div>
       </div>
     </div>

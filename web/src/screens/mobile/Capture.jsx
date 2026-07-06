@@ -4,14 +4,14 @@ const DOC_TYPES = ['Накладная', 'Чек', 'Ведомость', 'Акт
 
 export default function Capture({ onOpenQueue }) {
   const [docType, setDocType] = useState('Накладная')
-  const [photos, setPhotos] = useState(3)
-  const [progress, setProgress] = useState(35)
+  const [photos, setPhotos] = useState(0)
+  const [progress, setProgress] = useState(0)
 
   useEffect(() => {
-    if (progress >= 100) return
+    if (photos === 0 || progress >= 100) return
     const t = window.setInterval(() => setProgress((p) => Math.min(100, p + 1.6)), 700)
     return () => window.clearInterval(t)
-  }, [progress < 100])
+  }, [photos, progress < 100])
 
   const shoot = () => {
     setPhotos((n) => n + 1)
@@ -47,7 +47,7 @@ export default function Capture({ onOpenQueue }) {
       <div className="cap-shutter-row">
         <div className="cap-preview">
           <div className="cap-preview-img" />
-          <div className="cap-preview-badge">{photos}</div>
+          {photos > 0 && <div className="cap-preview-badge">{photos}</div>}
         </div>
         <div className="cap-shutter-wrap">
           <button className="cap-shutter" onClick={shoot} aria-label="Снять"><div /></button>
@@ -55,19 +55,21 @@ export default function Capture({ onOpenQueue }) {
         <button className="cap-queue-link" onClick={onOpenQueue}>Очередь →</button>
       </div>
 
-      <div className="cap-progress">
-        <div className="cap-progress-row">
-          <div className="cap-progress-text">
-            {progress >= 100
-              ? `${photos} фото обработано · смотрите в очереди`
-              : `${photos} фото отправлено · ИИ обрабатывает`}
+      {photos > 0 && (
+        <div className="cap-progress">
+          <div className="cap-progress-row">
+            <div className="cap-progress-text">
+              {progress >= 100
+                ? `${photos} фото обработано · смотрите в очереди`
+                : `${photos} фото отправлено · ИИ обрабатывает`}
+            </div>
+            <div className="cap-progress-eta">{progress >= 100 ? 'готово' : `~${etaSec} сек`}</div>
           </div>
-          <div className="cap-progress-eta">{progress >= 100 ? 'готово' : `~${etaSec} сек`}</div>
+          <div className="cap-progress-bar">
+            <div className="cap-progress-fill" style={{ width: `${progress}%` }} />
+          </div>
         </div>
-        <div className="cap-progress-bar">
-          <div className="cap-progress-fill" style={{ width: `${progress}%` }} />
-        </div>
-      </div>
+      )}
     </>
   )
 }

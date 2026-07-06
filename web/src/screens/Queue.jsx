@@ -4,7 +4,7 @@ import { StatusChip, DocCard, plural } from '../components/ui.jsx'
 import { money } from '../format.js'
 
 export function QueueList({ mobile = false }) {
-  const { documents, selectedDocId, setSelectedDocId, shipReady, showToast } = useApp()
+  const { documents, selectedDocId, setSelectedDocId, shipReady, showToast, canEdit } = useApp()
   const [filter, setFilter] = useState('all')
 
   const counts = useMemo(() => {
@@ -31,17 +31,23 @@ export function QueueList({ mobile = false }) {
     </>
   )
 
-  const cards = visible.map((d) => (
-    <DocCard
-      key={d.id}
-      doc={d}
-      status={docStatus(d)}
-      selected={!mobile && d.id === selectedDocId}
-      onClick={() => setSelectedDocId(d.id)}
-    />
-  ))
+  const cards = visible.length
+    ? visible.map((d) => (
+      <DocCard
+        key={d.id}
+        doc={d}
+        status={docStatus(d)}
+        selected={!mobile && d.id === selectedDocId}
+        onClick={() => setSelectedDocId(d.id)}
+      />
+    ))
+    : (
+      <div className="list-empty">
+        {documents.length ? 'Нет документов в этом фильтре' : 'Пока нет документов'}
+      </div>
+    )
 
-  const batch = counts.ready > 0 && (
+  const batch = canEdit && counts.ready > 0 && (
     <button className="btn-primary" onClick={shipReady}>
       Выгрузить готовые ({counts.ready}) →
     </button>
@@ -54,7 +60,9 @@ export function QueueList({ mobile = false }) {
           <div className="mq-title">Очередь</div>
           <div className="mq-count">{documents.length}</div>
           <div className="spacer" />
-          <button className="mq-add" onClick={() => showToast('Загрузка файлов доступна в веб-версии на десктопе')}>+ файлы</button>
+          {canEdit && (
+            <button className="mq-add" onClick={() => showToast('Загрузка файлов доступна в веб-версии на десктопе')}>+ файлы</button>
+          )}
         </div>
         <div className="mq-filters">{filters}</div>
         <div className="mq-list">{cards}</div>
@@ -69,7 +77,9 @@ export function QueueList({ mobile = false }) {
         <div className="queue-list-title">Входящие</div>
         <div className="queue-count">{documents.length}</div>
         <div className="spacer" />
-        <button className="queue-add" onClick={() => showToast('Выберите файлы или перетащите их в окно')}>+ файлы</button>
+        {canEdit && (
+          <button className="queue-add" onClick={() => showToast('Выберите файлы или перетащите их в окно')}>+ файлы</button>
+        )}
       </div>
       <div className="queue-filters">{filters}</div>
       <div className="queue-scroll">{cards}</div>
@@ -126,7 +136,7 @@ function LineRow({ line, resolved }) {
 }
 
 function FlaggedLine({ doc, line, onFlash }) {
-  const { resolveLine } = useApp()
+  const { resolveLine, canEdit } = useApp()
   const [custom, setCustom] = useState('')
 
   const apply = (price) => {
@@ -144,17 +154,19 @@ function FlaggedLine({ doc, line, onFlash }) {
       </div>
       <div className="line-helper">
         <div className="line-helper-text">ИИ не уверен в цене — на фото:</div>
-        {line.candidates.map((p) => (
+        {canEdit && line.candidates.map((p) => (
           <button key={p} className="price-variant" onClick={() => apply(p)}>{p} ₽</button>
         ))}
-        <input
-          className="price-input"
-          placeholder="своя цена"
-          inputMode="numeric"
-          value={custom}
-          onChange={(e) => setCustom(e.target.value.replace(/\D/g, ''))}
-          onKeyDown={(e) => { if (e.key === 'Enter') apply(Number(custom)) }}
-        />
+        {canEdit && (
+          <input
+            className="price-input"
+            placeholder="своя цена"
+            inputMode="numeric"
+            value={custom}
+            onChange={(e) => setCustom(e.target.value.replace(/\D/g, ''))}
+            onKeyDown={(e) => { if (e.key === 'Enter') apply(Number(custom)) }}
+          />
+        )}
         <button className="link" onClick={onFlash}>показать на фото</button>
       </div>
     </div>
@@ -162,7 +174,7 @@ function FlaggedLine({ doc, line, onFlash }) {
 }
 
 function VerifyPanel({ doc }) {
-  const { shipDoc } = useApp()
+  const { shipDoc, canEdit } = useApp()
   const [flash, setFlash] = useState(false)
   const status = docStatus(doc)
   const { total, unknown } = docTotal(doc)
@@ -246,16 +258,14 @@ function VerifyPanel({ doc }) {
                   <div className="total unknown">итого: {money(total)} + ?</div>
                   <div className="total-note">зависит от строки {flaggedIdx}</div>
                 </div>
-                <button className="btn-primary" disabled>отгрузить в учёт</button>
+                {canEdit && <button className="btn-primary" disabled>отгрузить в учёт</button>}
               </>
             ) : (
               <>
                 <div className="total">итого: {money(total)} ₽</div>
-                {status === 'shipped' ? (
-                  <button className="btn-primary" disabled>отгружено</button>
-                ) : (
-                  <button className="btn-primary" onClick={() => shipDoc(doc.id)}>отгрузить в учёт →</button>
-                )}
+                {status === 'shipped'
+                  ? <span className="chip success">отгружено</span>
+                  : canEdit && <button className="btn-primary" onClick={() => shipDoc(doc.id)}>отгрузить в учёт →</button>}
               </>
             )}
           </div>
@@ -271,7 +281,15 @@ export default function Queue() {
   return (
     <div className="screen">
       <QueueList />
-      {doc ? <VerifyPanel doc={doc} /> : <div className="verify-empty">выберите документ</div>}
+      {doc ? (
+        <VerifyPanel doc={doc} />
+      ) : (
+        <div className="verify-empty">
+          <div className="verify-empty-inner">
+            {documents.length ? 'Выберите документ из списка' : 'Очередь пуста — документы появятся после съёмки и распознавания'}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

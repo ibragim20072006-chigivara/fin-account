@@ -1,5 +1,6 @@
+import { LogOut } from 'lucide-react'
 import { useApp } from '../state.jsx'
-import { currentUser } from '../data.js'
+import { initials } from '../auth.js'
 
 const NAV = [
   { id: 'queue', label: 'Очередь' },
@@ -10,7 +11,7 @@ const NAV = [
 ]
 
 export default function Sidebar() {
-  const { screen, setScreen, documents } = useApp()
+  const { screen, setScreen, documents, currentUser, role, logout } = useApp()
   return (
     <div className="sidebar">
       <div className="sidebar-logo">
@@ -25,16 +26,21 @@ export default function Sidebar() {
             onClick={() => setScreen(item.id)}
           >
             {item.label}
-            {item.id === 'queue' && <span className="sidebar-badge">{documents.length}</span>}
+            {item.id === 'queue' && documents.length > 0 && (
+              <span className="sidebar-badge">{documents.length}</span>
+            )}
           </button>
         ))}
       </nav>
       <div className="sidebar-user">
-        <div className="avatar">{currentUser.initials}</div>
-        <div>
+        <div className="avatar">{initials(currentUser.name)}</div>
+        <div className="sidebar-user-main">
           <div className="sidebar-user-name">{currentUser.name}</div>
-          <div className="sidebar-user-role">{currentUser.role}</div>
+          <div className="sidebar-user-role">{role?.label ?? ''}</div>
         </div>
+        <button className="sidebar-logout" onClick={logout} title="Выйти">
+          <LogOut size={16} strokeWidth={1.75} />
+        </button>
       </div>
     </div>
   )
