@@ -10,7 +10,7 @@
 
 ## Структура
 - `web/` — веб-интерфейс: очередь документов, отчёты ОПиУ/ДДС, категории, шаблоны, настройки; адаптивные мобильные экраны (съёмка, очередь, отчёты) при ширине < 768px
-- `src/` — Python: `export_xlsx.py` (выгрузка по маппингу «шаблон_учёт.xlsx»), `main.py` (демо)
+- `src/` — Python: `export_xlsx.py` (выгрузка по маппингу «шаблон_учёт.xlsx»), `main.py` (читает вход из `data/documents.json`)
 - `data/` — входные Excel/CSV файлы (в .gitignore)
 - `output/` — результаты (в .gitignore)
 
@@ -23,7 +23,7 @@ npm install
 npm run dev
 ```
 
-Выгрузка в .xlsx (демо):
+Выгрузка в .xlsx (вход — `data/documents.json`):
 ```
 py src/main.py
 ```

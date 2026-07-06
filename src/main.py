@@ -1,26 +1,39 @@
-"""Демо-выгрузка: накладная №214 из очереди -> output/выгрузка_накладная_214.xlsx."""
+"""Выгрузка отгруженных документов в .xlsx: читает вход из DATA_DIR/documents.json."""
+import json
+import os
 from pathlib import Path
 
 from export_xlsx import export_documents
 
-DOCUMENTS = [
-    {
-        "date": "14.06.2026",
-        "counterparty": "СтройБаза Юг",
-        "lines": [
-            {"category": "Щебень фр. 5–20", "qty": 26.4, "price": 850, "account": "90.01"},
-            {"category": "Щебень фр. 20–40", "qty": 18.0, "price": 790, "account": "90.01"},
-            {"category": "Отсев 0–5", "qty": 12.2, "price": 430, "account": "90.01"},
-            {"category": "Доставка самосвалом", "qty": 2, "price": 3200, "account": "90.01"},
-        ],
-    },
-]
+ROOT = Path(__file__).resolve().parent.parent
+
+
+def load_env(root):
+    env_path = root / ".env"
+    if not env_path.exists():
+        return
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip())
 
 
 def main():
-    out_dir = Path(__file__).resolve().parent.parent / "output"
-    out_dir.mkdir(exist_ok=True)
-    path = export_documents(DOCUMENTS, out_dir / "выгрузка_накладная_214.xlsx")
+    load_env(ROOT)
+    data_dir = ROOT / os.environ.get("DATA_DIR", "data")
+    out_dir = ROOT / os.environ.get("OUTPUT_DIR", "output")
+    source = data_dir / "documents.json"
+
+    if not source.exists():
+        print(f"Нет входных данных: {source}")
+        print('Ожидается JSON вида: [{"date","counterparty","lines":[{"category","qty","price","account"}]}]')
+        return
+
+    documents = json.loads(source.read_text(encoding="utf-8"))
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path = export_documents(documents, out_dir / "выгрузка.xlsx")
     print(f"Готово: {path}")
 
 

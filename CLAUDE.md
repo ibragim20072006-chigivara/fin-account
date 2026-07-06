@@ -10,7 +10,7 @@
 - `web/src/data.js` — мок-данные (модель: Document, Line, Category, ExportTemplate)
 - `web/src/state.jsx` — стор (React context) и действия
 - `web/src/screens/` — экраны: Queue, Reports, Categories, Templates, Settings + mobile/
-- `src/export_xlsx.py`, `src/main.py` — выгрузка (демо: `py src/main.py`)
+- `src/export_xlsx.py`, `src/main.py` — выгрузка; `main.py` читает вход из `data/documents.json` (`py src/main.py`)
 - `data/`, `output/` — в .gitignore
 
 ## Запуск
