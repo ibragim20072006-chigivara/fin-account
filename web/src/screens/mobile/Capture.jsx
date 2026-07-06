@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import NewDocument from '../NewDocument.jsx'
 
 const DOC_TYPES = ['Накладная', 'Чек', 'Ведомость', 'Акт']
 
@@ -6,6 +7,7 @@ export default function Capture({ onOpenQueue }) {
   const [docType, setDocType] = useState('Накладная')
   const [photos, setPhotos] = useState(0)
   const [progress, setProgress] = useState(0)
+  const [showNew, setShowNew] = useState(false)
 
   useEffect(() => {
     if (photos === 0 || progress >= 100) return
@@ -43,6 +45,10 @@ export default function Capture({ onOpenQueue }) {
           </button>
         ))}
       </div>
+
+      <button className="cap-manual" onClick={() => setShowNew(true)}>или ввести вручную</button>
+
+      {showNew && <NewDocument onClose={() => setShowNew(false)} />}
 
       <div className="cap-shutter-row">
         <div className="cap-preview">

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Camera, Inbox, BarChart3 } from 'lucide-react'
+import { Camera, Inbox, BarChart3, Settings as SettingsIcon } from 'lucide-react'
 import { useApp } from './state.jsx'
 import Sidebar from './components/Sidebar.jsx'
 import Queue, { QueueList } from './screens/Queue.jsx'
@@ -35,10 +35,11 @@ const BASE_TABS = [
   { id: 'queue', label: 'Очередь', Icon: Inbox },
   { id: 'reports', label: 'Отчёты', Icon: BarChart3 },
 ]
+const SETTINGS_TAB = { id: 'settings', label: 'Настройки', Icon: SettingsIcon }
 
 function Mobile() {
   const { canEdit } = useApp()
-  const tabs = canEdit ? [CAPTURE_TAB, ...BASE_TABS] : BASE_TABS
+  const tabs = [...(canEdit ? [CAPTURE_TAB] : []), ...BASE_TABS, SETTINGS_TAB]
   const [tab, setTab] = useState('queue')
   const dark = tab === 'capture'
   return (
@@ -46,6 +47,7 @@ function Mobile() {
       {tab === 'capture' && canEdit && <Capture onOpenQueue={() => setTab('queue')} />}
       {tab === 'queue' && <QueueList mobile />}
       {tab === 'reports' && <MobileReports />}
+      {tab === 'settings' && <Settings />}
       <div className="tabbar">
         {tabs.map(({ id, label, Icon }) => (
           <button key={id} className={`tab${tab === id ? ' active' : ''}`} onClick={() => setTab(id)}>

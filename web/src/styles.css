@@ -733,3 +733,45 @@ button.legend-row:hover { background: var(--thead-bg); }
   border-radius: 6px; color: var(--text-3); flex: none;
 }
 .team-remove:hover { background: var(--danger-bg); color: var(--danger); }
+
+/* ===== Кнопки добавления в очереди ===== */
+.queue-actions, .mq-actions { display: flex; align-items: center; gap: 6px; }
+
+/* ===== Форма нового документа ===== */
+.nd-modal { width: 640px; }
+.nd-body { display: flex; flex-direction: column; gap: 12px; padding: 16px 22px; }
+.nd-fields { display: flex; gap: 12px; }
+.nd-field { display: flex; flex-direction: column; gap: 5px; }
+.nd-field.grow { flex: 1; min-width: 0; }
+.nd-input {
+  font-family: inherit; font-size: 13px; width: 100%;
+  padding: 7px 9px; border: 1px solid var(--ctl-border); border-radius: 7px; outline: none;
+}
+.nd-input:focus { border-color: var(--primary); }
+.nd-select { width: 150px; }
+.nd-lines { display: flex; flex-direction: column; gap: 6px; overflow-x: auto; }
+.nd-line {
+  display: grid; grid-template-columns: minmax(0, 1.6fr) 66px 74px minmax(0, 1fr) 78px 26px;
+  gap: 8px; align-items: center; min-width: 520px;
+}
+.nd-line-head > div { font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--text-3); }
+.nd-sum { text-align: right; font-size: 12px; }
+.nd-sum-h { text-align: right; }
+.nd-remove { color: var(--text-3); font-size: 13px; width: 26px; height: 26px; border-radius: 6px; }
+.nd-remove:hover:not(:disabled) { background: var(--danger-bg); color: var(--danger); }
+.nd-remove:disabled { opacity: .4; cursor: default; }
+.nd-addline { align-self: flex-start; }
+
+/* ===== Ссылка «ввести вручную» на экране съёмки ===== */
+.cap-manual { display: block; margin: 2px auto 0; color: #7fb0ff; font-size: 13px; padding: 6px 10px; }
+
+/* ===== Мобильные правки (Настройки, форма) ===== */
+@media (max-width: 767px) {
+  .nd-modal { width: 100%; }
+  .mobile .page { padding: 16px 14px; }
+  .team-row { flex-wrap: wrap; row-gap: 2px; }
+  .team-name { width: auto; flex: 1; }
+  .team-role, .team-rights { width: auto; }
+  .settings-row { flex-wrap: wrap; }
+  .settings-row-label { width: 100%; }
+}

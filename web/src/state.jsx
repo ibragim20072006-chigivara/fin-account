@@ -11,6 +11,11 @@ export const STATUS = {
   shipped: { label: 'отгружено', tone: 'muted' },
 }
 
+export const DOC_TYPES = ['накладная', 'чек', 'ведомость', 'акт']
+export const DOC_TYPE_LABEL = {
+  накладная: 'Накладная', чек: 'Чек', ведомость: 'Ведомость', акт: 'Акт', импорт: 'Импорт',
+}
+
 export function docStatus(doc) {
   if (doc.status === 'review' && !doc.lines.some((l) => l.flag && !l.resolvedAt)) return 'ready'
   return doc.status
@@ -168,6 +173,51 @@ export function AppProvider({ children }) {
     if (docId) setSelectedDocId(docId)
   }
 
+  const accountOfCategory = (name) => categories.find((c) => c.name === name)?.account ?? ''
+
+  const addDocument = ({ type = 'накладная', title, counterparty, date, lines }) => {
+    const at = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+    const id = 'doc' + Date.now().toString(36)
+    const cleanLines = lines.map((l, i) => ({
+      id: `l${i}`,
+      name: l.name,
+      qty: l.qty ?? '',
+      qtyValue: l.qtyValue ?? null,
+      price: l.price ?? null,
+      sum: l.sum ?? (l.qtyValue != null && l.price != null ? Math.round(l.qtyValue * l.price) : null),
+      category: l.category ?? '',
+      account: l.account || accountOfCategory(l.category ?? ''),
+    }))
+    const doc = {
+      id, type,
+      title: title?.trim() || DOC_TYPE_LABEL[type] || 'Документ',
+      counterparty: counterparty ?? '',
+      subtitle: counterparty ?? '',
+      panelSubtitle: `${counterparty ?? ''} · ${date ?? ''} · добавил ${currentUser?.name ?? ''}`,
+      date: date ?? '',
+      uploadedBy: currentUser?.name ?? '',
+      uploadedAt: at,
+      status: 'ready',
+      photoLabel: 'документ добавлен вручную',
+      lines: cleanLines,
+    }
+    setDocuments((docs) => [doc, ...docs])
+    setSelectedDocId(id)
+    showToast('Документ добавлен в очередь')
+    return id
+  }
+
+  const addDocuments = (docs) => {
+    if (!docs.length) return 0
+    const withAccount = docs.map((d) => ({
+      ...d,
+      lines: d.lines.map((l) => ({ ...l, account: l.account || accountOfCategory(l.category) })),
+    }))
+    setDocuments((prev) => [...withAccount, ...prev])
+    setSelectedDocId(withAccount[0].id)
+    return withAccount.length
+  }
+
   const addKeyword = (categoryId, word) => {
     setCategories((cats) => cats.map((c) => (
       c.id === categoryId && word && !c.keywords.includes(word)
@@ -203,6 +253,7 @@ export function AppProvider({ children }) {
     users, currentUser, role, canEdit, isAdmin,
     register, login, logout, addUser, setUserRole, removeUser,
     resolveLine, shipDoc, shipReady, openDocInQueue,
+    addDocument, addDocuments,
     addKeyword, setThreshold, createSuggestedCategory,
     toast, showToast,
   }), [screen, documents, selectedDocId, categories, selectedCategoryId,

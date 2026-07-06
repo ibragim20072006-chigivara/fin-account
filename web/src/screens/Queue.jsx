@@ -1,11 +1,35 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useApp, docStatus, docTotal } from '../state.jsx'
 import { StatusChip, DocCard, plural } from '../components/ui.jsx'
+import { parseCsv, rowsToDocuments } from '../import.js'
+import NewDocument from './NewDocument.jsx'
 import { money } from '../format.js'
 
 export function QueueList({ mobile = false }) {
-  const { documents, selectedDocId, setSelectedDocId, shipReady, showToast, canEdit } = useApp()
+  const { documents, selectedDocId, setSelectedDocId, shipReady, showToast, canEdit, addDocuments, currentUser } = useApp()
   const [filter, setFilter] = useState('all')
+  const [showNew, setShowNew] = useState(false)
+  const fileRef = useRef(null)
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    const text = await file.text()
+    const docs = rowsToDocuments(parseCsv(text), currentUser?.name ?? '')
+    const n = addDocuments(docs)
+    showToast(n ? `Импортировано документов: ${n}` : 'В файле не распознаны строки (ожидается CSV выгрузки)')
+  }
+
+  const addControls = canEdit && (
+    <>
+      <button className={mobile ? 'mq-add' : 'queue-add'} onClick={() => setShowNew(true)}>+ документ</button>
+      <button className={mobile ? 'mq-add' : 'queue-add'} onClick={() => fileRef.current?.click()}>из файла</button>
+      <input ref={fileRef} type="file" accept=".csv,text/csv" hidden onChange={handleFile} />
+    </>
+  )
+
+  const modal = showNew && <NewDocument onClose={() => setShowNew(false)} />
 
   const counts = useMemo(() => {
     const c = { review: 0, ready: 0 }
@@ -60,13 +84,12 @@ export function QueueList({ mobile = false }) {
           <div className="mq-title">Очередь</div>
           <div className="mq-count">{documents.length}</div>
           <div className="spacer" />
-          {canEdit && (
-            <button className="mq-add" onClick={() => showToast('Загрузка файлов доступна в веб-версии на десктопе')}>+ файлы</button>
-          )}
+          <div className="mq-actions">{addControls}</div>
         </div>
         <div className="mq-filters">{filters}</div>
         <div className="mq-list">{cards}</div>
         {batch && <div className="mq-batch">{batch}</div>}
+        {modal}
       </>
     )
   }
@@ -77,13 +100,12 @@ export function QueueList({ mobile = false }) {
         <div className="queue-list-title">Входящие</div>
         <div className="queue-count">{documents.length}</div>
         <div className="spacer" />
-        {canEdit && (
-          <button className="queue-add" onClick={() => showToast('Выберите файлы или перетащите их в окно')}>+ файлы</button>
-        )}
+        <div className="queue-actions">{addControls}</div>
       </div>
       <div className="queue-filters">{filters}</div>
       <div className="queue-scroll">{cards}</div>
       {batch && <div className="queue-batch">{batch}</div>}
+      {modal}
     </div>
   )
 }
