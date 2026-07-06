@@ -1,9 +1,6 @@
-import { createContext, useContext, useMemo, useState } from 'react'
-import { initialDocuments, initialCategories, initialTemplates, EXPORT_COLUMNS, aiSuggestion, ROLES } from './data.js'
-import { loadUsers, saveUsers, loadSession, saveSession, newId } from './auth.js'
-import {
-  loadTemplates, saveTemplates, loadActiveTemplateId, saveActiveTemplateId, newTemplateId,
-} from './templatesStore.js'
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { initialTemplates, aiSuggestion, ROLES } from './data.js'
+import { api, newId } from './api.js'
 
 const AppContext = createContext(null)
 
@@ -39,6 +36,15 @@ const CHART_PALETTE = [
   'var(--chart-5)', 'var(--chart-g1)', 'var(--chart-g2)', 'var(--chart-g3)',
 ]
 
+function docsForCategory(shipped, name) {
+  const out = []
+  for (const doc of shipped) {
+    const sum = doc.lines.filter((l) => l.category === name && l.sum != null).reduce((s, l) => s + l.sum, 0)
+    if (sum > 0) out.push({ date: doc.date ?? '', name: doc.title, who: doc.uploadedBy ?? '', sum, queueId: doc.id })
+  }
+  return out
+}
+
 function groupByCategory(shipped, kindByName, kind) {
   const sums = new Map()
   for (const doc of shipped) {
@@ -57,16 +63,6 @@ function groupByCategory(shipped, kindByName, kind) {
   }))
 }
 
-function docsForCategory(shipped, name) {
-  const out = []
-  for (const doc of shipped) {
-    const sum = doc.lines.filter((l) => l.category === name && l.sum != null).reduce((s, l) => s + l.sum, 0)
-    if (sum > 0) out.push({ date: doc.date ?? '', name: doc.title, who: doc.uploadedBy ?? '', sum, queueId: doc.id })
-  }
-  return out
-}
-
-// Отчёты агрегируются из отгруженных документов и категорий (kind: доход/расход).
 export function computeReports(documents, categories) {
   const kindByName = {}
   for (const c of categories) kindByName[c.name] = c.kind
@@ -85,27 +81,29 @@ export function computeReports(documents, categories) {
   }
 }
 
+const LEGACY_KEYS = ['km_users', 'km_session', 'km_templates', 'km_active_template']
+
 export function AppProvider({ children }) {
   const [screen, setScreen] = useState('queue')
-  const [documents, setDocuments] = useState(initialDocuments)
+  const [documents, setDocuments] = useState([])
   const [selectedDocId, setSelectedDocId] = useState(null)
-  const [categories, setCategories] = useState(initialCategories)
+  const [categories, setCategories] = useState([])
   const [selectedCategoryId, setSelectedCategoryId] = useState(null)
-  const [templates, setTemplates] = useState(() => loadTemplates(initialTemplates))
-  const [activeTemplateId, setActiveTemplateId] = useState(loadActiveTemplateId)
+  const [templates, setTemplates] = useState(initialTemplates)
+  const [activeTemplateId, setActiveTemplateId] = useState(null)
   const [suggestion, setSuggestion] = useState(aiSuggestion)
   const [toast, setToast] = useState(null)
 
-  const [users, setUsers] = useState(loadUsers)
-  const [sessionUserId, setSessionUserId] = useState(loadSession)
+  const [currentUser, setCurrentUser] = useState(null)
+  const [users, setUsers] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  const currentUser = users.find((u) => u.id === sessionUserId) ?? null
+  const readyRef = useRef(false)
+  const saveTimers = useRef({})
+
   const role = currentUser ? ROLES[currentUser.role] ?? ROLES.viewer : null
   const canEdit = !!role?.canEdit
   const isAdmin = !!role?.isAdmin
-
-  const persistUsers = (next) => { setUsers(next); saveUsers(next) }
-  const persistSession = (id) => { setSessionUserId(id); saveSession(id) }
 
   const showToast = (text) => {
     setToast(text)
@@ -113,36 +111,86 @@ export function AppProvider({ children }) {
     showToast._t = window.setTimeout(() => setToast(null), 3200)
   }
 
-  const register = ({ name, role: chosen }) => {
-    const trimmed = name.trim()
-    if (!trimmed) return
-    // Первый пользователь всегда администратор — чтобы было кому управлять доступом.
-    const finalRole = users.length === 0 ? 'admin' : (ROLES[chosen] ? chosen : 'viewer')
-    const user = { id: newId(), name: trimmed, role: finalRole }
-    persistUsers([...users, user])
-    persistSession(user.id)
+  // ===== Загрузка сессии и данных =====
+  const loadWorkspace = async () => {
+    const [docs, cats, tpls] = await Promise.all([api.getDocuments(), api.getCategories(), api.getTemplates()])
+    setDocuments(docs)
+    setCategories(cats)
+    setTemplates(tpls.templates.length ? tpls.templates : initialTemplates)
+    setActiveTemplateId(tpls.activeTemplateId)
+    // ready включаем на следующий тик, чтобы автосейв не сработал на только что загруженных данных
+    window.setTimeout(() => { readyRef.current = true }, 0)
   }
 
-  const login = (userId) => persistSession(userId)
-  const logout = () => persistSession(null)
+  useEffect(() => {
+    LEGACY_KEYS.forEach((k) => { try { window.localStorage.removeItem(k) } catch { /* ignore */ } })
+    ;(async () => {
+      if (api.getToken()) {
+        try {
+          setCurrentUser(await api.me())
+          await loadWorkspace()
+        } catch {
+          api.clearToken()
+        }
+      }
+      setLoading(false)
+    })()
+  }, [])
 
-  const addUser = ({ name, role: chosen }) => {
-    const trimmed = name.trim()
-    if (!trimmed) return
-    const user = { id: newId(), name: trimmed, role: ROLES[chosen] ? chosen : 'viewer' }
-    persistUsers([...users, user])
-    showToast(`Пользователь «${trimmed}» добавлен`)
+  // ===== Автосохранение коллекций (дебаунс) =====
+  const scheduleSave = (kind, fn) => {
+    if (!readyRef.current) return
+    window.clearTimeout(saveTimers.current[kind])
+    saveTimers.current[kind] = window.setTimeout(() => {
+      fn().catch((e) => showToast(e.message))
+    }, 500)
+  }
+  useEffect(() => { scheduleSave('documents', () => api.putDocuments(documents)) }, [documents])
+  useEffect(() => { scheduleSave('categories', () => api.putCategories(categories)) }, [categories])
+  useEffect(() => { scheduleSave('templates', () => api.putTemplates(templates, activeTemplateId)) }, [templates, activeTemplateId])
+
+  // ===== Авторизация =====
+  const register = async ({ name, login, password, role: chosen }) => {
+    setCurrentUser(await api.register({ name, login, password, role: chosen }))
+    await loadWorkspace()
+  }
+  const loginUser = async ({ login, password }) => {
+    setCurrentUser(await api.login({ login, password }))
+    await loadWorkspace()
+  }
+  const logout = async () => {
+    await api.logout()
+    readyRef.current = false
+    setCurrentUser(null)
+    setUsers([])
+    setDocuments([])
+    setCategories([])
+    setTemplates(initialTemplates)
+    setActiveTemplateId(null)
+    setSelectedDocId(null)
+    setSelectedCategoryId(null)
   }
 
-  const setUserRole = (userId, nextRole) => {
-    persistUsers(users.map((u) => (u.id === userId ? { ...u, role: nextRole } : u)))
+  // ===== Пользователи (админ) =====
+  const loadUsers = async () => {
+    try { setUsers(await api.listUsers()) } catch (e) { showToast(e.message) }
+  }
+  const addUser = async ({ name, login, password, role: chosen }) => {
+    await api.addUser({ name, login, password, role: chosen })
+    await loadUsers()
+    showToast(`Пользователь «${name}» добавлен`)
+  }
+  const setUserRole = async (id, nextRole) => {
+    await api.setUserRole(id, nextRole)
+    await loadUsers()
+  }
+  const removeUser = async (id) => {
+    await api.removeUser(id)
+    if (id === currentUser?.id) logout()
+    else await loadUsers()
   }
 
-  const removeUser = (userId) => {
-    persistUsers(users.filter((u) => u.id !== userId))
-    if (userId === sessionUserId) persistSession(null)
-  }
-
+  // ===== Документы =====
   const resolveLine = (docId, lineId, price) => {
     const at = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
     const by = currentUser?.name ?? ''
@@ -181,7 +229,7 @@ export function AppProvider({ children }) {
 
   const addDocument = ({ type = 'накладная', title, counterparty, date, lines }) => {
     const at = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
-    const id = 'doc' + Date.now().toString(36)
+    const id = newId('doc')
     const cleanLines = lines.map((l, i) => ({
       id: `l${i}`,
       name: l.name,
@@ -222,6 +270,7 @@ export function AppProvider({ children }) {
     return withAccount.length
   }
 
+  // ===== Категории =====
   const addKeyword = (categoryId, word) => {
     setCategories((cats) => cats.map((c) => (
       c.id === categoryId && word && !c.keywords.includes(word)
@@ -237,7 +286,7 @@ export function AppProvider({ children }) {
   const createSuggestedCategory = () => {
     if (!suggestion) return
     const cat = {
-      id: 'rent', kind: 'expense', name: suggestion.name, account: '60.01',
+      id: newId('cat'), kind: 'expense', name: suggestion.name, account: '60.01',
       linesMonth: suggestion.lines.length,
       sumMonth: suggestion.lines.reduce((s, l) => s + l.sum, 0),
       keywords: [], threshold: 90,
@@ -249,55 +298,50 @@ export function AppProvider({ children }) {
     showToast(`Категория «${cat.name}» создана`)
   }
 
+  // ===== Шаблоны =====
   const activeTemplate = templates.find((t) => t.id === activeTemplateId)
     ?? templates.find((t) => t.isDefault) ?? templates[0]
 
-  const persistTemplates = (next) => { setTemplates(next); saveTemplates(next) }
-
   const addTemplate = (name) => {
     const tpl = {
-      id: newTemplateId(),
+      id: newId('tpl'),
       name: (name ?? '').trim() || 'Новый шаблон',
       isDefault: false,
-      columns: EXPORT_COLUMNS.map((c) => ({ key: c.key, label: c.label })),
+      columns: activeTemplate?.columns?.map((c) => ({ ...c })) ?? [],
     }
-    persistTemplates([...templates, tpl])
+    setTemplates((ts) => [...ts, tpl])
     return tpl.id
   }
-
   const renameTemplate = (id, name) => {
     const trimmed = (name ?? '').trim()
     if (!trimmed) return
-    persistTemplates(templates.map((t) => (t.id === id ? { ...t, name: trimmed } : t)))
+    setTemplates((ts) => ts.map((t) => (t.id === id ? { ...t, name: trimmed } : t)))
   }
-
   const updateTemplateColumns = (id, columns) => {
     if (!columns.length) return
-    persistTemplates(templates.map((t) => (t.id === id ? { ...t, columns } : t)))
+    setTemplates((ts) => ts.map((t) => (t.id === id ? { ...t, columns } : t)))
   }
-
   const removeTemplate = (id) => {
-    if (templates.length <= 1) return
-    persistTemplates(templates.filter((t) => t.id !== id))
-    if (id === activeTemplateId) { setActiveTemplateId(null); saveActiveTemplateId(null) }
+    setTemplates((ts) => (ts.length <= 1 ? ts : ts.filter((t) => t.id !== id)))
+    if (id === activeTemplateId) setActiveTemplateId(null)
   }
-
-  const setActiveTemplate = (id) => { setActiveTemplateId(id); saveActiveTemplateId(id) }
+  const setActiveTemplate = (id) => setActiveTemplateId(id)
 
   const value = useMemo(() => ({
+    loading,
     screen, setScreen,
     documents, selectedDocId, setSelectedDocId,
     categories, selectedCategoryId, setSelectedCategoryId,
     templates, activeTemplate, suggestion, setSuggestion,
     addTemplate, renameTemplate, updateTemplateColumns, removeTemplate, setActiveTemplate,
-    users, currentUser, role, canEdit, isAdmin,
-    register, login, logout, addUser, setUserRole, removeUser,
+    currentUser, role, canEdit, isAdmin,
+    users, loadUsers, register, login: loginUser, logout, addUser, setUserRole, removeUser,
     resolveLine, shipDoc, shipReady, openDocInQueue,
     addDocument, addDocuments,
     addKeyword, setThreshold, createSuggestedCategory,
     toast, showToast,
-  }), [screen, documents, selectedDocId, categories, selectedCategoryId,
-    templates, activeTemplateId, suggestion, users, sessionUserId, toast])
+  }), [loading, screen, documents, selectedDocId, categories, selectedCategoryId,
+    templates, activeTemplateId, suggestion, currentUser, users, toast])
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }

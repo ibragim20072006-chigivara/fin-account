@@ -1,6 +1,6 @@
 import { LogOut } from 'lucide-react'
 import { useApp } from '../state.jsx'
-import { initials } from '../auth.js'
+import { initials } from '../api.js'
 
 const NAV = [
   { id: 'queue', label: 'Очередь' },

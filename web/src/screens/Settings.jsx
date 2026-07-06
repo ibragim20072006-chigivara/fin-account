@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import { useApp } from '../state.jsx'
 import { ROLES, ROLE_ORDER } from '../data.js'
-import { initials } from '../auth.js'
+import { initials } from '../api.js'
 import { downloadShipmentCsv } from '../export.js'
 
 function ExportCard() {
@@ -32,17 +32,24 @@ function ExportCard() {
 }
 
 function AddUser() {
-  const { addUser } = useApp()
+  const { addUser, showToast } = useApp()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
+  const [login, setLogin] = useState('')
+  const [password, setPassword] = useState('')
   const [role, setRole] = useState('viewer')
 
-  const submit = () => {
-    if (!name.trim()) return
-    addUser({ name, role })
-    setName('')
-    setRole('viewer')
-    setOpen(false)
+  const reset = () => { setName(''); setLogin(''); setPassword(''); setRole('viewer'); setOpen(false) }
+  const valid = name.trim() && login.trim() && password
+
+  const submit = async () => {
+    if (!valid) return
+    try {
+      await addUser({ name, login, password, role })
+      reset()
+    } catch (e) {
+      showToast(e.message)
+    }
   }
 
   if (!open) {
@@ -51,26 +58,22 @@ function AddUser() {
 
   return (
     <div className="add-user">
-      <input
-        className="keyword-input"
-        style={{ width: 160 }}
-        autoFocus
-        placeholder="Имя и фамилия"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') setOpen(false) }}
-      />
+      <input className="keyword-input" style={{ width: 150 }} autoFocus placeholder="Имя и фамилия" value={name} onChange={(e) => setName(e.target.value)} />
+      <input className="keyword-input" style={{ width: 110 }} placeholder="логин" value={login} onChange={(e) => setLogin(e.target.value)} />
+      <input className="keyword-input" style={{ width: 110 }} type="password" placeholder="пароль" value={password} onChange={(e) => setPassword(e.target.value)} />
       <select className="role-select" value={role} onChange={(e) => setRole(e.target.value)}>
         {ROLE_ORDER.map((r) => <option key={r} value={r}>{ROLES[r].label}</option>)}
       </select>
-      <button className="btn-primary sm" onClick={submit} disabled={!name.trim()}>добавить</button>
-      <button className="team-link" onClick={() => setOpen(false)}>отмена</button>
+      <button className="btn-primary sm" onClick={submit} disabled={!valid}>добавить</button>
+      <button className="team-link" onClick={reset}>отмена</button>
     </div>
   )
 }
 
 function TeamCard() {
-  const { users, currentUser, isAdmin, setUserRole, removeUser } = useApp()
+  const { users, currentUser, isAdmin, setUserRole, removeUser, loadUsers } = useApp()
+
+  useEffect(() => { loadUsers() }, [])
 
   return (
     <div className="team-card card">

@@ -719,6 +719,10 @@ button.legend-row:hover { background: var(--thead-bg); }
 .auth-user-role { font-size: 11.5px; color: var(--text-3); }
 .auth-card .btn-primary:disabled { background: var(--disabled-bg); color: var(--disabled-text); }
 .auth-back { align-self: flex-start; }
+.auth-error {
+  font-size: 12.5px; color: var(--danger); background: var(--danger-bg);
+  border: 1px solid var(--danger-border); border-radius: 8px; padding: 8px 11px;
+}
 
 /* ===== Настройки: управление пользователями ===== */
 .add-user { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

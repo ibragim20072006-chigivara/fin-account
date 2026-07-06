@@ -4,24 +4,27 @@
 
 ## Стек
 - Frontend: React + Vite в `web/` (без UI-фреймворка, стили в `web/src/styles.css` с токенами из дизайн-хэндоффа)
-- Python + openpyxl в `src/` — выгрузка .xlsx по маппингу «шаблон_учёт.xlsx»
+- Backend: Node + Express + SQLite в `server/` (встроенный `node:sqlite`) — авторизация и хранение данных, раздаёт и API, и `web/dist` одним процессом
+- Python + openpyxl в `src/` — отдельная утилита .xlsx-выгрузки
 
 ## Структура
-- `web/src/data.js` — стартовое состояние (пустое: без демо-данных) + `EXPORT_COLUMNS` (схема CSV) и `ROLES`
-- `web/src/state.jsx` — стор (React context), действия, `computeReports` (отчёты агрегируются из отгруженных документов)
-- `web/src/auth.js` — пользователи/сессия в localStorage; `web/src/export.js` — CSV-выгрузка
-- `web/src/screens/` — экраны: Register, Queue, Reports, Categories, Templates, Settings, Guide (руководство) + mobile/
-- `src/export_xlsx.py`, `src/main.py` — выгрузка; `main.py` читает вход из `data/documents.json` (`py src/main.py`)
-- `data/`, `output/` — в .gitignore
+- `web/src/api.js` — клиент бэкенда (токен в localStorage `km_token`, методы auth/users/данные) + `initials`, `newId`
+- `web/src/state.jsx` — стор (React context): загрузка данных с сервера при входе, дебаунс-сохранение (`api.put*`), `computeReports`
+- `web/src/data.js` — `EXPORT_COLUMNS` (каталог полей), `ROLES`, дефолтный `initialTemplates`; `web/src/export.js`/`import.js` — CSV
+- `web/src/screens/` — экраны: Register, Queue, Reports, Categories, Templates, Settings, Guide + mobile/
+- `server/src/` — `db.js` (схема+сид), `auth.js` (scrypt, сессии, middleware ролей), `index.js` (роуты + статика)
+- `src/export_xlsx.py`, `src/main.py` — Python-выгрузка (`py src/main.py`)
+- `data/`, `output/`, `server/data.db` — в .gitignore
 
-## Пользователи и роли
-- Роли (`web/src/data.js` → `ROLES`): `viewer` (просмотр), `editor` (+редактирование), `admin` (+управление пользователями). Гейтинг через `canEdit`/`isAdmin` из стора.
-- Первый зарегистрированный пользователь — всегда `admin`. Нет сессии → рендерится `Register`.
-- Выгрузка — только скачивание CSV (без почты/Telegram).
+## Пользователи, роли, хранение
+- Роли (`ROLES` в data.js и в `server/src/auth.js`): `viewer`/`editor`/`admin`. Гейтинг на клиенте (`canEdit`/`isAdmin`) и на сервере (`requireEditor`/`requireAdmin`).
+- Регистрация — только «бутстрап» первого пользователя (→ `admin`); дальше закрыта, пользователей заводит админ в «Настройках» (логин+пароль+роль).
+- Данные (документы/категории/шаблоны/пользователи) — в `server/data.db`, общие; сессия по токену переживает перезагрузку.
 
 ## Запуск
-- Веб: `cd web && npm run dev`
-- Python: `py src/main.py` (на машине рабочий интерпретатор — `py`, не `python`)
+- Один процесс: `cd web && npm run build`, затем `cd server && npm start` → http://localhost:3001
+- Развёртывание на сервер (из интернета): `DEPLOY.md`
+- Python: `py src/main.py` (рабочий интерпретатор — `py`, не `python`)
 
 ## Конвенции
 - Дизайн-референс: пакет design_handoff_karier_manager (hi-fi, 9 экранов) — при правках UI сверяться с токенами

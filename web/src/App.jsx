@@ -65,7 +65,15 @@ function Mobile() {
 }
 
 export default function App() {
-  const { currentUser, toast } = useApp()
+  const { currentUser, loading, toast } = useApp()
+
+  if (loading) {
+    return (
+      <div className="auth">
+        <div className="auth-card card"><div className="auth-sub">Загрузка…</div></div>
+      </div>
+    )
+  }
 
   if (!currentUser) {
     return (

@@ -1,19 +1,35 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useApp } from '../state.jsx'
-import { ROLES, ROLE_ORDER } from '../data.js'
-import { initials } from '../auth.js'
+import { api } from '../api.js'
 
 export default function Register() {
-  const { users, register, login } = useApp()
-  const firstUser = users.length === 0
-  const [mode, setMode] = useState(firstUser ? 'create' : 'pick')
+  const { register, login } = useApp()
+  const [hasUsers, setHasUsers] = useState(null) // null пока не знаем
   const [name, setName] = useState('')
-  const [role, setRole] = useState('editor')
+  const [loginId, setLoginId] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
 
-  const submit = (e) => {
+  useEffect(() => {
+    api.status().then((s) => setHasUsers(s.hasUsers)).catch(() => setHasUsers(true))
+  }, [])
+
+  const submit = async (e) => {
     e.preventDefault()
-    register({ name, role })
+    setError('')
+    setBusy(true)
+    try {
+      if (hasUsers) await login({ login: loginId, password })
+      else await register({ name, login: loginId, password })
+    } catch (err) {
+      setError(err.message)
+      setBusy(false)
+    }
   }
+
+  const isRegister = hasUsers === false
+  const canSubmit = loginId.trim() && password && (!isRegister || name.trim())
 
   return (
     <div className="auth">
@@ -23,70 +39,37 @@ export default function Register() {
           <div className="sidebar-logo-name">Карьер-менеджер</div>
         </div>
 
-        {mode === 'pick' ? (
-          <>
-            <div className="auth-title">Вход</div>
-            <div className="auth-sub">Выберите пользователя или добавьте нового</div>
-            <div className="auth-users">
-              {users.map((u) => (
-                <button key={u.id} className="auth-user" onClick={() => login(u.id)}>
-                  <div className="avatar">{initials(u.name)}</div>
-                  <div className="auth-user-info">
-                    <div className="auth-user-name">{u.name}</div>
-                    <div className="auth-user-role">{ROLES[u.role]?.label ?? u.role}</div>
-                  </div>
-                  <div className="spacer" />
-                  <div className="link">войти →</div>
-                </button>
-              ))}
-            </div>
-            <button className="btn-outline-blue" onClick={() => setMode('create')}>+ новый пользователь</button>
-          </>
+        {hasUsers === null ? (
+          <div className="auth-sub">Загрузка…</div>
         ) : (
           <form onSubmit={submit}>
-            <div className="auth-title">{firstUser ? 'Регистрация' : 'Новый пользователь'}</div>
+            <div className="auth-title">{isRegister ? 'Регистрация' : 'Вход'}</div>
             <div className="auth-sub">
-              {firstUser
+              {isRegister
                 ? 'Первый пользователь становится администратором'
-                : 'Роль определяет права: просмотр или редактирование'}
+                : 'Введите логин и пароль'}
             </div>
 
+            {isRegister && (
+              <label className="auth-field">
+                <div className="section-label">ИМЯ</div>
+                <input className="auth-input" autoFocus value={name} placeholder="Имя и фамилия" onChange={(e) => setName(e.target.value)} />
+              </label>
+            )}
             <label className="auth-field">
-              <div className="section-label">ИМЯ</div>
-              <input
-                className="auth-input"
-                autoFocus
-                value={name}
-                placeholder="Имя и фамилия"
-                onChange={(e) => setName(e.target.value)}
-              />
+              <div className="section-label">ЛОГИН</div>
+              <input className="auth-input" autoFocus={!isRegister} value={loginId} placeholder="логин" autoComplete="username" onChange={(e) => setLoginId(e.target.value)} />
+            </label>
+            <label className="auth-field">
+              <div className="section-label">ПАРОЛЬ</div>
+              <input className="auth-input" type="password" value={password} autoComplete={isRegister ? 'new-password' : 'current-password'} onChange={(e) => setPassword(e.target.value)} />
             </label>
 
-            {!firstUser && (
-              <div className="auth-field">
-                <div className="section-label">РОЛЬ</div>
-                <div className="auth-roles">
-                  {ROLE_ORDER.map((r) => (
-                    <button
-                      type="button"
-                      key={r}
-                      className={`auth-role${role === r ? ' active' : ''}`}
-                      onClick={() => setRole(r)}
-                    >
-                      <div className="auth-role-name">{ROLES[r].label}</div>
-                      <div className="auth-role-hint">{ROLES[r].hint}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+            {error && <div className="auth-error">{error}</div>}
 
-            <button className="btn-primary" type="submit" disabled={!name.trim()}>
-              {firstUser ? 'Создать и войти' : 'Добавить и войти'}
+            <button className="btn-primary" type="submit" disabled={!canSubmit || busy}>
+              {busy ? '…' : isRegister ? 'Создать и войти' : 'Войти'}
             </button>
-            {!firstUser && (
-              <button type="button" className="link auth-back" onClick={() => setMode('pick')}>← к списку</button>
-            )}
           </form>
         )}
       </div>
