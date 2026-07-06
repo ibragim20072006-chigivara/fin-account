@@ -26,18 +26,25 @@ function splitCsvLine(line, delim) {
   return cells.map((c) => c.trim())
 }
 
-// CSV → массив строк-объектов по ключам EXPORT_COLUMNS (по совпадению заголовков).
-export function parseCsv(text) {
+// Сопоставляет заголовок столбца с полем: подписи активного шаблона, затем
+// стандартные подписи каталога, затем ключи каталога.
+function headerToKey(header, template) {
+  const h = header.trim().toLowerCase()
+  const fromTemplate = template?.columns?.find((c) => (c.label ?? '').toLowerCase() === h)
+  if (fromTemplate) return fromTemplate.key
+  const fromCatalog = EXPORT_COLUMNS.find((c) => c.label.toLowerCase() === h || c.key.toLowerCase() === h)
+  return fromCatalog ? fromCatalog.key : null
+}
+
+// CSV → массив строк-объектов по полям каталога (по совпадению заголовков).
+export function parseCsv(text, template) {
   const clean = String(text).replace(/^﻿/, '')
   const lines = clean.split(/\r?\n/).filter((l) => l.trim())
   if (lines.length < 2) return []
 
   const delim = lines[0].includes(';') ? ';' : ','
   const header = splitCsvLine(lines[0], delim)
-  const keys = header.map((h) => {
-    const col = EXPORT_COLUMNS.find((c) => c.label.toLowerCase() === h.toLowerCase())
-    return col ? col.key : null
-  })
+  const keys = header.map((h) => headerToKey(h, template))
 
   return lines.slice(1).map((line) => {
     const cells = splitCsvLine(line, delim)

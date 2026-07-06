@@ -6,11 +6,11 @@ import { initials } from '../auth.js'
 import { downloadShipmentCsv } from '../export.js'
 
 function ExportCard() {
-  const { documents, showToast } = useApp()
+  const { documents, activeTemplate, showToast } = useApp()
   const shippedCount = documents.filter((d) => d.status === 'shipped').length
 
   const download = () => {
-    const rows = downloadShipmentCsv(documents)
+    const rows = downloadShipmentCsv(documents, activeTemplate)
     showToast(rows ? `Скачано строк: ${rows}` : 'Нет отгруженных документов для выгрузки')
   }
 
@@ -19,7 +19,7 @@ function ExportCard() {
       <div className="settings-card-title">Выгрузка</div>
       <div className="settings-row">
         <div className="settings-row-label">Формат</div>
-        <div className="settings-value">CSV · колонки шаблона «шаблон_учёт»</div>
+        <div className="settings-value">CSV · шаблон «{activeTemplate.name}»</div>
       </div>
       <div className="settings-row">
         <div className="settings-row-label">Отгружено документов</div>

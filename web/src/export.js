@@ -29,18 +29,20 @@ function csvCell(value) {
   return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
 }
 
-export function toCsv(rows) {
-  const header = EXPORT_COLUMNS.map((c) => c.label)
-  const body = rows.map((r) => EXPORT_COLUMNS.map((c) => csvCell(r[c.key])))
+export function toCsv(rows, columns = EXPORT_COLUMNS) {
+  const header = columns.map((c) => c.label)
+  const body = rows.map((r) => columns.map((c) => csvCell(r[c.key])))
   return [header, ...body].map((cols) => cols.join(';')).join('\r\n')
 }
 
-// Скачивает CSV из отгруженных документов. Возвращает число строк (0 — скачивать нечего).
-export function downloadShipmentCsv(documents, filename = 'выгрузка.csv') {
+// Скачивает CSV из отгруженных документов по колонкам активного шаблона.
+// Возвращает число строк (0 — скачивать нечего).
+export function downloadShipmentCsv(documents, template, filename = 'выгрузка.csv') {
   const rows = buildExportRows(documents)
   if (!rows.length) return 0
 
-  const blob = new Blob(['﻿' + toCsv(rows)], { type: 'text/csv;charset=utf-8;' })
+  const columns = template?.columns ?? EXPORT_COLUMNS
+  const blob = new Blob(['﻿' + toCsv(rows, columns)], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url

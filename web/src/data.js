@@ -22,10 +22,8 @@ export const initialTemplates = [
   {
     id: 'main',
     name: 'шаблон_учёт',
-    badge: 'основной',
-    meta: '7 колонок · для 1С:Бухгалтерии',
-    description: 'каждая отгрузка формирует строки в этом формате',
-    columns: EXPORT_COLUMNS,
+    isDefault: true,
+    columns: EXPORT_COLUMNS.map((c) => ({ key: c.key, label: c.label })),
   },
 ]
 

@@ -6,7 +6,7 @@ import NewDocument from './NewDocument.jsx'
 import { money } from '../format.js'
 
 export function QueueList({ mobile = false }) {
-  const { documents, selectedDocId, setSelectedDocId, shipReady, showToast, canEdit, addDocuments, currentUser } = useApp()
+  const { documents, selectedDocId, setSelectedDocId, shipReady, showToast, canEdit, addDocuments, currentUser, activeTemplate } = useApp()
   const [filter, setFilter] = useState('all')
   const [showNew, setShowNew] = useState(false)
   const fileRef = useRef(null)
@@ -16,7 +16,7 @@ export function QueueList({ mobile = false }) {
     e.target.value = ''
     if (!file) return
     const text = await file.text()
-    const docs = rowsToDocuments(parseCsv(text), currentUser?.name ?? '')
+    const docs = rowsToDocuments(parseCsv(text, activeTemplate), currentUser?.name ?? '')
     const n = addDocuments(docs)
     showToast(n ? `Импортировано документов: ${n}` : 'В файле не распознаны строки (ожидается CSV выгрузки)')
   }

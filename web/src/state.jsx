@@ -1,6 +1,9 @@
 import { createContext, useContext, useMemo, useState } from 'react'
-import { initialDocuments, initialCategories, initialTemplates, aiSuggestion, ROLES } from './data.js'
+import { initialDocuments, initialCategories, initialTemplates, EXPORT_COLUMNS, aiSuggestion, ROLES } from './data.js'
 import { loadUsers, saveUsers, loadSession, saveSession, newId } from './auth.js'
+import {
+  loadTemplates, saveTemplates, loadActiveTemplateId, saveActiveTemplateId, newTemplateId,
+} from './templatesStore.js'
 
 const AppContext = createContext(null)
 
@@ -88,7 +91,8 @@ export function AppProvider({ children }) {
   const [selectedDocId, setSelectedDocId] = useState(null)
   const [categories, setCategories] = useState(initialCategories)
   const [selectedCategoryId, setSelectedCategoryId] = useState(null)
-  const [templates] = useState(initialTemplates)
+  const [templates, setTemplates] = useState(() => loadTemplates(initialTemplates))
+  const [activeTemplateId, setActiveTemplateId] = useState(loadActiveTemplateId)
   const [suggestion, setSuggestion] = useState(aiSuggestion)
   const [toast, setToast] = useState(null)
 
@@ -245,11 +249,47 @@ export function AppProvider({ children }) {
     showToast(`Категория «${cat.name}» создана`)
   }
 
+  const activeTemplate = templates.find((t) => t.id === activeTemplateId)
+    ?? templates.find((t) => t.isDefault) ?? templates[0]
+
+  const persistTemplates = (next) => { setTemplates(next); saveTemplates(next) }
+
+  const addTemplate = (name) => {
+    const tpl = {
+      id: newTemplateId(),
+      name: (name ?? '').trim() || 'Новый шаблон',
+      isDefault: false,
+      columns: EXPORT_COLUMNS.map((c) => ({ key: c.key, label: c.label })),
+    }
+    persistTemplates([...templates, tpl])
+    return tpl.id
+  }
+
+  const renameTemplate = (id, name) => {
+    const trimmed = (name ?? '').trim()
+    if (!trimmed) return
+    persistTemplates(templates.map((t) => (t.id === id ? { ...t, name: trimmed } : t)))
+  }
+
+  const updateTemplateColumns = (id, columns) => {
+    if (!columns.length) return
+    persistTemplates(templates.map((t) => (t.id === id ? { ...t, columns } : t)))
+  }
+
+  const removeTemplate = (id) => {
+    if (templates.length <= 1) return
+    persistTemplates(templates.filter((t) => t.id !== id))
+    if (id === activeTemplateId) { setActiveTemplateId(null); saveActiveTemplateId(null) }
+  }
+
+  const setActiveTemplate = (id) => { setActiveTemplateId(id); saveActiveTemplateId(id) }
+
   const value = useMemo(() => ({
     screen, setScreen,
     documents, selectedDocId, setSelectedDocId,
     categories, selectedCategoryId, setSelectedCategoryId,
-    templates, suggestion, setSuggestion,
+    templates, activeTemplate, suggestion, setSuggestion,
+    addTemplate, renameTemplate, updateTemplateColumns, removeTemplate, setActiveTemplate,
     users, currentUser, role, canEdit, isAdmin,
     register, login, logout, addUser, setUserRole, removeUser,
     resolveLine, shipDoc, shipReady, openDocInQueue,
@@ -257,7 +297,7 @@ export function AppProvider({ children }) {
     addKeyword, setThreshold, createSuggestedCategory,
     toast, showToast,
   }), [screen, documents, selectedDocId, categories, selectedCategoryId,
-    templates, suggestion, users, sessionUserId, toast])
+    templates, activeTemplateId, suggestion, users, sessionUserId, toast])
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }

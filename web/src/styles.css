@@ -762,6 +762,22 @@ button.legend-row:hover { background: var(--thead-bg); }
 .nd-remove:disabled { opacity: .4; cursor: default; }
 .nd-addline { align-self: flex-start; }
 
+/* ===== Редактор колонок шаблона ===== */
+.col-editor { display: flex; flex-direction: column; gap: 8px; }
+.ce-row {
+  display: grid; grid-template-columns: 190px 1fr 96px; gap: 10px; align-items: center;
+}
+.ce-head > div { font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--text-3); }
+.ce-field { width: 100%; }
+.ce-actions { display: flex; gap: 4px; justify-content: flex-end; }
+.ce-btn {
+  width: 28px; height: 28px; border: 1px solid var(--ctl-border); border-radius: 6px;
+  color: var(--text-2); font-size: 13px; display: grid; place-items: center;
+}
+.ce-btn:hover:not(:disabled) { background: var(--thead-bg); }
+.ce-btn:disabled { opacity: .4; cursor: default; }
+.ce-remove:hover:not(:disabled) { background: var(--danger-bg); color: var(--danger); border-color: var(--danger-border); }
+
 /* ===== Ссылка «ввести вручную» на экране съёмки ===== */
 .cap-manual { display: block; margin: 2px auto 0; color: #7fb0ff; font-size: 13px; padding: 6px 10px; }
 
