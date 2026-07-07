@@ -6,11 +6,11 @@ import { initials } from '../api.js'
 import { downloadShipmentCsv } from '../export.js'
 
 function ExportCard() {
-  const { documents, activeTemplate, showToast } = useApp()
+  const { documents, activeTemplate, categories, showToast } = useApp()
   const shippedCount = documents.filter((d) => d.status === 'shipped').length
 
   const download = () => {
-    const rows = downloadShipmentCsv(documents, activeTemplate)
+    const rows = downloadShipmentCsv(documents, activeTemplate, categories)
     showToast(rows ? `Скачано строк: ${rows}` : 'Нет отгруженных документов для выгрузки')
   }
 

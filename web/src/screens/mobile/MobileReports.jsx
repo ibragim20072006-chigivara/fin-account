@@ -8,8 +8,6 @@ export default function MobileReports() {
   const { documents, categories } = useApp()
   const [tab, setTab] = useState('opu')
   const report = useMemo(() => computeReports(documents, categories), [documents, categories])
-  const opu = report.opu
-  const dds = report.dds
 
   return (
     <>
@@ -29,46 +27,46 @@ export default function MobileReports() {
         ) : tab === 'opu' ? (
           <>
             <div className="kpi card">
-              <div className="kpi-label">ВЫРУЧКА</div>
-              <div className="kpi-value">{rub(opu.revenue)}</div>
+              <div className="kpi-label">ПРИХОД</div>
+              <div className="kpi-value">{rub(report.prihod)}</div>
             </div>
             <div className="kpi card">
-              <div className="kpi-label">ЧИСТАЯ ПРИБЫЛЬ</div>
-              <div className="kpi-value blue">{rub(opu.profit)}</div>
+              <div className="kpi-label">ВЫРУЧКА</div>
+              <div className="kpi-value blue">{rub(report.vyruchka)}</div>
             </div>
-            {opu.expenses.length > 0 && (
+            {report.payments.length > 0 && (
               <div className="breakdown card">
                 <div className="breakdown-head">
-                  <div className="breakdown-title">Расходы по статьям</div>
-                  <div className="breakdown-total">{rub(opu.expensesTotal)}</div>
+                  <div className="breakdown-title">Расход по статьям</div>
+                  <div className="breakdown-total">{rub(report.rashod)}</div>
                 </div>
-                <StackBar items={opu.expenses} />
-                <Legend items={opu.expenses} twoCol />
+                <StackBar items={report.payments} />
+                <Legend items={report.payments} twoCol />
               </div>
             )}
           </>
         ) : (
           <>
             <div className="kpi card">
-              <div className="kpi-label">ПОСТУПЛЕНИЯ</div>
-              <div className="kpi-value">{rub(dds.inflow)}</div>
+              <div className="kpi-label">ПРИХОД</div>
+              <div className="kpi-value">{rub(report.prihod)}</div>
             </div>
             <div className="kpi card">
-              <div className="kpi-label">ВЫПЛАТЫ</div>
-              <div className="kpi-value">{rub(dds.outflow)}</div>
+              <div className="kpi-label">РАСХОД</div>
+              <div className="kpi-value">{rub(report.rashod)}</div>
             </div>
             <div className="kpi card">
-              <div className="kpi-label">ДЕНЕЖНЫЙ ПОТОК</div>
-              <div className="kpi-value blue">{rub(dds.inflow - dds.outflow)}</div>
+              <div className="kpi-label">ВЫРУЧКА</div>
+              <div className="kpi-value blue">{rub(report.vyruchka)}</div>
             </div>
-            {dds.payments.length > 0 && (
+            {report.payments.length > 0 && (
               <div className="breakdown card">
                 <div className="breakdown-head">
-                  <div className="breakdown-title">Выплаты</div>
-                  <div className="breakdown-total">{rub(dds.outflow)}</div>
+                  <div className="breakdown-title">Расход по статьям</div>
+                  <div className="breakdown-total">{rub(report.rashod)}</div>
                 </div>
-                <StackBar items={dds.payments} />
-                <Legend items={dds.payments} />
+                <StackBar items={report.payments} />
+                <Legend items={report.payments} />
               </div>
             )}
           </>

@@ -6,7 +6,7 @@ import NewDocument from './NewDocument.jsx'
 import { money } from '../format.js'
 
 export function QueueList({ mobile = false }) {
-  const { documents, selectedDocId, setSelectedDocId, shipReady, showToast, canEdit, addDocuments, currentUser, activeTemplate } = useApp()
+  const { documents, selectedDocId, setSelectedDocId, shipReady, showToast, canEdit, addDocuments, currentUser, activeTemplate, categories } = useApp()
   const [filter, setFilter] = useState('all')
   const [showNew, setShowNew] = useState(false)
   const fileRef = useRef(null)
@@ -16,7 +16,7 @@ export function QueueList({ mobile = false }) {
     e.target.value = ''
     if (!file) return
     const text = await file.text()
-    const docs = rowsToDocuments(parseCsv(text, activeTemplate), currentUser?.name ?? '')
+    const docs = rowsToDocuments(parseCsv(text, activeTemplate), currentUser?.name ?? '', categories)
     const n = addDocuments(docs)
     showToast(n ? `Импортировано документов: ${n}` : 'В файле не распознаны строки (ожидается CSV выгрузки)')
   }
@@ -142,7 +142,7 @@ function PhotoPane({ doc, flash }) {
   )
 }
 
-function LineRow({ line, resolved }) {
+function LineRow({ line, resolved, catName }) {
   return (
     <div className={`lines-grid line-row${resolved ? ' line-resolved' : ''}`}>
       <div className="line-name">
@@ -152,7 +152,7 @@ function LineRow({ line, resolved }) {
       <div className="line-num">{line.qty}</div>
       <div className="line-num">{money(line.price)}</div>
       <div className="line-num">{money(line.sum)}</div>
-      <div className="line-cat"><span className="cat-chip">{line.category}</span></div>
+      <div className="line-cat">{catName && <span className="cat-chip">{catName}</span>}</div>
     </div>
   )
 }
@@ -197,7 +197,7 @@ function FlaggedLine({ doc, line, onFlash }) {
 }
 
 function VerifyPanel({ doc }) {
-  const { shipDoc, canEdit } = useApp()
+  const { shipDoc, canEdit, categoryOfLine } = useApp()
   const [flash, setFlash] = useState(false)
   const status = docStatus(doc)
   const { total, unknown } = docTotal(doc)
@@ -267,7 +267,7 @@ function VerifyPanel({ doc }) {
             {doc.lines.map((l) =>
               l.sum == null && !l.resolvedAt
                 ? <FlaggedLine key={l.id} doc={doc} line={l} onFlash={doFlash} />
-                : <LineRow key={l.id} line={l} resolved={!!l.resolvedAt} />,
+                : <LineRow key={l.id} line={l} resolved={!!l.resolvedAt} catName={categoryOfLine(l)?.name ?? ''} />,
             )}
           </div>
           <div className="lines-footer">

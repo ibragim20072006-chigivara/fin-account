@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useApp } from '../state.jsx'
 import { Segment } from '../components/ui.jsx'
 import { money, rub } from '../format.js'
+import CategoryForm from './CategoryForm.jsx'
 
 function AiBanner() {
   const { suggestion, setSuggestion, createSuggestedCategory, canEdit } = useApp()
@@ -50,7 +51,7 @@ function CategoryDetail({ cat }) {
     <div className="detail card">
       <div className="detail-head">
         <div className="detail-title">{cat.name}</div>
-        <span className="chip neutral">{cat.kind === 'income' ? 'доход' : 'расход'}</span>
+        <span className="chip neutral">{cat.kind === 'income' ? 'приход' : 'расход'}</span>
         <div className="spacer" />
         {canEdit && <button className="btn-ghost sm" onClick={() => showToast('Переименование доступно владельцу категории')}>переименовать</button>}
       </div>
@@ -125,7 +126,8 @@ function CategoryDetail({ cat }) {
 }
 
 export default function Categories() {
-  const { categories, selectedCategoryId, setSelectedCategoryId, showToast, canEdit } = useApp()
+  const { categories, selectedCategoryId, setSelectedCategoryId, canEdit } = useApp()
+  const [creating, setCreating] = useState(false)
   const selected = categories.find((c) => c.id === selectedCategoryId) ?? categories[0]
   const income = categories.filter((c) => c.kind === 'income')
   const expense = categories.filter((c) => c.kind === 'expense')
@@ -147,8 +149,17 @@ export default function Categories() {
         <div className="page-title">Категории</div>
         <div className="page-count">{categories.length} категорий</div>
         <div className="spacer" />
-        {canEdit && <button className="btn-outline-blue" onClick={() => showToast('Заполните название и счёт новой категории')}>+ категория</button>}
+        {canEdit && !creating && <button className="btn-outline-blue" onClick={() => setCreating(true)}>+ категория</button>}
       </div>
+
+      {creating && (
+        <div className="card" style={{ padding: 14 }}>
+          <CategoryForm
+            onDone={(id) => { setCreating(false); if (id) setSelectedCategoryId(id) }}
+            onCancel={() => setCreating(false)}
+          />
+        </div>
+      )}
 
       <AiBanner />
 
@@ -159,9 +170,9 @@ export default function Categories() {
       ) : (
         <div className="split">
           <div className="side-list card">
-            {income.length > 0 && <div className="cat-group-label">ВЫРУЧКА</div>}
+            {income.length > 0 && <div className="cat-group-label">ПРИХОД</div>}
             {income.map(row)}
-            {expense.length > 0 && <div className="cat-group-label">РАСХОДЫ</div>}
+            {expense.length > 0 && <div className="cat-group-label">РАСХОД</div>}
             {expense.map(row)}
           </div>
           {selected && <CategoryDetail cat={selected} />}

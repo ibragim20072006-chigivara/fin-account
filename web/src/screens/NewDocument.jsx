@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { useApp, DOC_TYPES, DOC_TYPE_LABEL } from '../state.jsx'
 import { parseNumber } from '../import.js'
 import { money } from '../format.js'
+import CategoryForm from './CategoryForm.jsx'
 
-const emptyLine = () => ({ name: '', qty: '', price: '', category: '' })
+const emptyLine = () => ({ name: '', qty: '', price: '', categoryId: '' })
 
 export default function NewDocument({ onClose }) {
   const { addDocument, categories } = useApp()
@@ -12,6 +13,10 @@ export default function NewDocument({ onClose }) {
   const [counterparty, setCounterparty] = useState('')
   const [date, setDate] = useState(() => new Date().toLocaleDateString('ru-RU'))
   const [lines, setLines] = useState([emptyLine()])
+  const [showCatForm, setShowCatForm] = useState(false)
+
+  const income = categories.filter((c) => c.kind === 'income')
+  const expense = categories.filter((c) => c.kind === 'expense')
 
   const setLine = (i, patch) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)))
   const addLine = () => setLines((ls) => [...ls, emptyLine()])
@@ -36,7 +41,7 @@ export default function NewDocument({ onClose }) {
         qtyValue: r.qtyValue,
         price: r.price,
         sum: r.sum,
-        category: r.category.trim(),
+        categoryId: r.categoryId || null,
       }))
     addDocument({ type, title, counterparty, date, lines: payload })
     onClose()
@@ -90,16 +95,31 @@ export default function NewDocument({ onClose }) {
                 <input className="nd-input" value={r.name} placeholder="Позиция" onChange={(e) => setLine(i, { name: e.target.value })} />
                 <input className="nd-input" value={r.qty} placeholder="1" onChange={(e) => setLine(i, { qty: e.target.value })} />
                 <input className="nd-input" value={r.price} placeholder="0" inputMode="numeric" onChange={(e) => setLine(i, { price: e.target.value })} />
-                <input className="nd-input" list="nd-cats" value={r.category} placeholder="—" onChange={(e) => setLine(i, { category: e.target.value })} />
+                <select className="role-select nd-select" value={r.categoryId} onChange={(e) => setLine(i, { categoryId: e.target.value })}>
+                  <option value="">— категория —</option>
+                  {income.length > 0 && (
+                    <optgroup label="Приход">
+                      {income.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </optgroup>
+                  )}
+                  {expense.length > 0 && (
+                    <optgroup label="Расход">
+                      {expense.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </optgroup>
+                  )}
+                </select>
                 <div className="nd-sum mono">{r.sum != null ? money(r.sum) : '—'}</div>
                 <button className="nd-remove" onClick={() => removeLine(i)} title="Удалить" disabled={lines.length === 1}>✕</button>
               </div>
             ))}
           </div>
-          <datalist id="nd-cats">
-            {categories.map((c) => <option key={c.id} value={c.name} />)}
-          </datalist>
-          <button className="keyword-add nd-addline" onClick={addLine}>+ позиция</button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button className="keyword-add nd-addline" onClick={addLine}>+ позиция</button>
+            {!showCatForm && <button className="keyword-add" onClick={() => setShowCatForm(true)}>＋ категория</button>}
+          </div>
+          {showCatForm && (
+            <CategoryForm onDone={() => setShowCatForm(false)} onCancel={() => setShowCatForm(false)} />
+          )}
         </div>
 
         <div className="modal-foot">

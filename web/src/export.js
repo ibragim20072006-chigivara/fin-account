@@ -1,27 +1,25 @@
 import { EXPORT_COLUMNS } from './data.js'
 
 // Строки выгрузки по отгруженным документам (одна строка на позицию документа).
-export function buildExportRows(documents) {
+// catOf(line) → объект категории (имя/счёт берём из него; фолбэк на старые line.category/account).
+export function buildExportRows(documents, catOf = () => null) {
   const rows = []
   for (const doc of documents) {
     if (doc.status !== 'shipped') continue
     for (const line of doc.lines) {
+      const cat = catOf(line)
       rows.push({
         date: doc.date ?? '',
         counterparty: doc.counterparty ?? '',
-        category: line.category ?? '',
+        category: cat?.name ?? line.category ?? '',
         qty: line.qtyValue ?? line.qty ?? '',
         price: line.price ?? '',
         sum: line.sum ?? '',
-        account: accountOf(line),
+        account: cat?.account ?? line.account ?? '',
       })
     }
   }
   return rows
-}
-
-function accountOf(line) {
-  return line.account ?? ''
 }
 
 function csvCell(value) {
@@ -37,8 +35,11 @@ export function toCsv(rows, columns = EXPORT_COLUMNS) {
 
 // Скачивает CSV из отгруженных документов по колонкам активного шаблона.
 // Возвращает число строк (0 — скачивать нечего).
-export function downloadShipmentCsv(documents, template, filename = 'выгрузка.csv') {
-  const rows = buildExportRows(documents)
+export function downloadShipmentCsv(documents, template, categories = [], filename = 'выгрузка.csv') {
+  const byId = new Map(categories.map((c) => [c.id, c]))
+  const byName = new Map(categories.map((c) => [c.name, c]))
+  const catOf = (l) => (l.categoryId && byId.get(l.categoryId)) || (l.category && byName.get(l.category)) || null
+  const rows = buildExportRows(documents, catOf)
   if (!rows.length) return 0
 
   const columns = template?.columns ?? EXPORT_COLUMNS

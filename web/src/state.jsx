@@ -40,48 +40,61 @@ const CHART_PALETTE = [
   'var(--chart-5)', 'var(--chart-g1)', 'var(--chart-g2)', 'var(--chart-g3)',
 ]
 
-function docsForCategory(shipped, name) {
+// Категория строки по ссылке (id), с фолбэком на имя для старых документов.
+export function lineCategory(line, byId, byName) {
+  if (line.categoryId && byId.has(line.categoryId)) return byId.get(line.categoryId)
+  if (line.category && byName.has(line.category)) return byName.get(line.category)
+  return null
+}
+
+function docsForCategory(shipped, catId, catOf) {
   const out = []
   for (const doc of shipped) {
-    const sum = doc.lines.filter((l) => l.category === name && l.sum != null).reduce((s, l) => s + l.sum, 0)
+    const sum = doc.lines.filter((l) => catOf(l)?.id === catId && l.sum != null).reduce((s, l) => s + l.sum, 0)
     if (sum > 0) out.push({ date: doc.date ?? '', name: doc.title, who: doc.uploadedBy ?? '', sum, queueId: doc.id })
   }
   return out
 }
 
-function groupByCategory(shipped, kindByName, kind) {
-  const sums = new Map()
+function groupByKind(shipped, catOf, kind) {
+  const acc = new Map() // id -> { id, name, account, sum }
   for (const doc of shipped) {
     for (const l of doc.lines) {
-      if (l.sum == null || kindByName[l.category] !== kind) continue
-      sums.set(l.category, (sums.get(l.category) ?? 0) + l.sum)
+      if (l.sum == null) continue
+      const cat = catOf(l)
+      if (!cat || cat.kind !== kind) continue
+      const cur = acc.get(cat.id) ?? { id: cat.id, name: cat.name, account: cat.account ?? '', sum: 0 }
+      cur.sum += l.sum
+      acc.set(cat.id, cur)
     }
   }
-  const items = [...sums.entries()].map(([name, sum]) => ({ name, sum })).sort((a, b) => b.sum - a.sum)
+  const items = [...acc.values()].sort((a, b) => b.sum - a.sum)
   const total = items.reduce((s, i) => s + i.sum, 0)
   return items.map((it, i) => ({
     ...it,
     pct: total ? Math.round((it.sum / total) * 100) : 0,
     color: CHART_PALETTE[i % CHART_PALETTE.length],
-    docs: docsForCategory(shipped, it.name),
+    docs: docsForCategory(shipped, it.id, catOf),
   }))
 }
 
+// Приход — поступления (income), Расход — выплаты (expense), Выручка = Приход − Расход.
 export function computeReports(documents, categories) {
-  const kindByName = {}
-  for (const c of categories) kindByName[c.name] = c.kind
+  const byId = new Map(categories.map((c) => [c.id, c]))
+  const byName = new Map(categories.map((c) => [c.name, c]))
+  const catOf = (l) => lineCategory(l, byId, byName)
   const shipped = documents.filter((d) => d.status === 'shipped')
 
-  const receipts = groupByCategory(shipped, kindByName, 'income')
-  const payments = groupByCategory(shipped, kindByName, 'expense')
-  const revenue = receipts.reduce((s, i) => s + i.sum, 0)
-  const expensesTotal = payments.reduce((s, i) => s + i.sum, 0)
+  const receipts = groupByKind(shipped, catOf, 'income')
+  const payments = groupByKind(shipped, catOf, 'expense')
+  const prihod = receipts.reduce((s, i) => s + i.sum, 0)
+  const rashod = payments.reduce((s, i) => s + i.sum, 0)
 
   return {
-    hasData: revenue > 0 || expensesTotal > 0,
+    hasData: prihod > 0 || rashod > 0,
     shippedCount: shipped.length,
-    opu: { revenue, expensesTotal, profit: revenue - expensesTotal, expenses: payments },
-    dds: { inflow: revenue, outflow: expensesTotal, receipts, payments },
+    prihod, rashod, vyruchka: prihod - rashod,
+    receipts, payments,
   }
 }
 
@@ -110,6 +123,12 @@ export function AppProvider({ children }) {
   const role = currentUser ? ROLES[currentUser.role] ?? ROLES.viewer : null
   const canEdit = !!role?.canEdit
   const isAdmin = !!role?.isAdmin
+
+  // Резолв категории строки по id (с фолбэком на имя) — единый источник имени/счёта/типа.
+  const catById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories])
+  const catByName = useMemo(() => new Map(categories.map((c) => [c.name, c])), [categories])
+  const getCategory = (id) => catById.get(id) ?? null
+  const categoryOfLine = (line) => lineCategory(line, catById, catByName)
 
   const showToast = (text) => {
     setToast(text)
@@ -261,8 +280,6 @@ export function AppProvider({ children }) {
     if (docId) setSelectedDocId(docId)
   }
 
-  const accountOfCategory = (name) => categories.find((c) => c.name === name)?.account ?? ''
-
   const addDocument = ({ type = 'накладная', title, counterparty, date, lines }) => {
     const at = nowLabel()
     const id = newId('doc')
@@ -273,8 +290,7 @@ export function AppProvider({ children }) {
       qtyValue: l.qtyValue ?? null,
       price: l.price ?? null,
       sum: l.sum ?? (l.qtyValue != null && l.price != null ? Math.round(l.qtyValue * l.price) : null),
-      category: l.category ?? '',
-      account: l.account || accountOfCategory(l.category ?? ''),
+      categoryId: l.categoryId ?? null,
     }))
     const doc = {
       id, type,
@@ -298,17 +314,26 @@ export function AppProvider({ children }) {
 
   const addDocuments = (docs) => {
     if (!docs.length) return 0
-    const withAccount = docs.map((d) => ({
-      ...d,
-      lines: d.lines.map((l) => ({ ...l, account: l.account || accountOfCategory(l.category) })),
-    }))
-    setDocuments((prev) => [...withAccount, ...prev])
-    setSelectedDocId(withAccount[0].id)
-    withAccount.forEach(persistDoc)
-    return withAccount.length
+    setDocuments((prev) => [...docs, ...prev])
+    setSelectedDocId(docs[0].id)
+    docs.forEach(persistDoc)
+    return docs.length
   }
 
   // ===== Категории =====
+  const addCategory = ({ name, kind, account }) => {
+    const cat = {
+      id: newId('cat'), kind: kind === 'income' ? 'income' : 'expense',
+      name: name.trim(), account: (account ?? '').trim(),
+      keywords: [], threshold: 90, matches: [], linesMonth: 0, sumMonth: 0,
+    }
+    setCategories((cats) => [...cats, cat])
+    setSelectedCategoryId(cat.id)
+    persistCat(cat)
+    showToast(`Категория «${cat.name}» создана`)
+    return cat.id
+  }
+
   const addKeyword = (categoryId, word) => {
     const cat = categories.find((c) => c.id === categoryId)
     if (!cat || !word || cat.keywords.includes(word)) return
@@ -407,7 +432,8 @@ export function AppProvider({ children }) {
     users, loadUsers, register, login: loginUser, logout, addUser, setUserRole, removeUser,
     resolveLine, shipDoc, shipReady, openDocInQueue,
     addDocument, addDocuments,
-    addKeyword, setThreshold, createSuggestedCategory,
+    addCategory, addKeyword, setThreshold, createSuggestedCategory,
+    getCategory, categoryOfLine,
     toast, showToast,
   }), [loading, screen, documents, selectedDocId, categories, selectedCategoryId,
     templates, activeTemplateId, suggestion, currentUser, users, toast])

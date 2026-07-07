@@ -8,7 +8,7 @@ export function StackBar({ items }) {
   return (
     <div className="stack-bar">
       {items.map((it) => (
-        <div key={it.name} style={{ width: `${it.pct}%`, background: it.color }} />
+        <div key={it.id} style={{ width: `${it.pct}%`, background: it.color }} />
       ))}
     </div>
   )
@@ -27,8 +27,8 @@ export function Legend({ items, twoCol, onSelect }) {
           </>
         )
         return onSelect
-          ? <button key={it.name} className="legend-row" onClick={() => onSelect(it)}>{inner}</button>
-          : <div key={it.name} className="legend-row">{inner}</div>
+          ? <button key={it.id} className="legend-row" onClick={() => onSelect(it)}>{inner}</button>
+          : <div key={it.id} className="legend-row">{inner}</div>
       })}
     </div>
   )
@@ -95,70 +95,70 @@ function OpuView({ data, onDrill }) {
     <>
       <div className="kpi-grid two">
         <div className="kpi card">
-          <div className="kpi-label">ВЫРУЧКА</div>
-          <div className="kpi-value">{rub(data.revenue)}</div>
+          <div className="kpi-label">ПРИХОД</div>
+          <div className="kpi-value">{rub(data.prihod)}</div>
         </div>
         <div className="kpi card">
-          <div className="kpi-label">ЧИСТАЯ ПРИБЫЛЬ</div>
-          <div className="kpi-value blue">{rub(data.profit)}</div>
+          <div className="kpi-label">ВЫРУЧКА</div>
+          <div className="kpi-value blue">{rub(data.vyruchka)}</div>
         </div>
       </div>
 
       <div className="breakdown card">
         <div className="breakdown-head">
-          <div className="breakdown-title">Расходы по статьям</div>
-          <div className="breakdown-total">{rub(data.expensesTotal)}</div>
+          <div className="breakdown-title">Расход по статьям</div>
+          <div className="breakdown-total">{rub(data.rashod)}</div>
         </div>
-        {data.expenses.length ? (
+        {data.payments.length ? (
           <>
-            <StackBar items={data.expenses} />
-            <Legend items={data.expenses} twoCol onSelect={onDrill} />
+            <StackBar items={data.payments} />
+            <Legend items={data.payments} twoCol onSelect={onDrill} />
             <div className="breakdown-hint">клик по статье → из каких документов сложилась сумма</div>
           </>
         ) : (
-          <div className="breakdown-hint">нет расходов за период</div>
+          <div className="breakdown-hint">нет расхода за период</div>
         )}
       </div>
     </>
   )
 }
 
-function DdsView({ data }) {
+function DdsView({ data, onDrill }) {
   return (
     <>
       <div className="kpi-grid three">
         <div className="kpi card">
-          <div className="kpi-label">ПОСТУПЛЕНИЯ</div>
-          <div className="kpi-value">{rub(data.inflow)}</div>
+          <div className="kpi-label">ПРИХОД</div>
+          <div className="kpi-value">{rub(data.prihod)}</div>
         </div>
         <div className="kpi card">
-          <div className="kpi-label">ВЫПЛАТЫ</div>
-          <div className="kpi-value">{rub(data.outflow)}</div>
+          <div className="kpi-label">РАСХОД</div>
+          <div className="kpi-value">{rub(data.rashod)}</div>
         </div>
         <div className="kpi card">
-          <div className="kpi-label">ДЕНЕЖНЫЙ ПОТОК</div>
-          <div className="kpi-value blue">{rub(data.inflow - data.outflow)}</div>
+          <div className="kpi-label">ВЫРУЧКА</div>
+          <div className="kpi-value blue">{rub(data.vyruchka)}</div>
         </div>
       </div>
 
       <div className="report-grid half">
         <div className="breakdown card">
           <div className="breakdown-head">
-            <div className="breakdown-title">Поступления</div>
-            <div className="breakdown-total">{rub(data.inflow)}</div>
+            <div className="breakdown-title">Приход по статьям</div>
+            <div className="breakdown-total">{rub(data.prihod)}</div>
           </div>
           {data.receipts.length ? (
-            <><StackBar items={data.receipts} /><Legend items={data.receipts} /></>
-          ) : <div className="breakdown-hint">нет поступлений за период</div>}
+            <><StackBar items={data.receipts} /><Legend items={data.receipts} onSelect={onDrill} /></>
+          ) : <div className="breakdown-hint">нет прихода за период</div>}
         </div>
         <div className="breakdown card">
           <div className="breakdown-head">
-            <div className="breakdown-title">Выплаты</div>
-            <div className="breakdown-total">{rub(data.outflow)}</div>
+            <div className="breakdown-title">Расход по статьям</div>
+            <div className="breakdown-total">{rub(data.rashod)}</div>
           </div>
           {data.payments.length ? (
-            <><StackBar items={data.payments} /><Legend items={data.payments} /></>
-          ) : <div className="breakdown-hint">нет выплат за период</div>}
+            <><StackBar items={data.payments} /><Legend items={data.payments} onSelect={onDrill} /></>
+          ) : <div className="breakdown-hint">нет расхода за период</div>}
         </div>
       </div>
     </>
@@ -173,7 +173,7 @@ export default function Reports() {
   const report = useMemo(() => computeReports(documents, categories), [documents, categories])
 
   const download = () => {
-    const rows = downloadShipmentCsv(documents, activeTemplate)
+    const rows = downloadShipmentCsv(documents, activeTemplate, categories)
     showToast(rows ? `Скачано строк: ${rows}` : 'Нет отгруженных документов для выгрузки')
   }
 
@@ -193,15 +193,15 @@ export default function Reports() {
       {!report.hasData ? (
         <ReportsEmpty />
       ) : tab === 'opu' ? (
-        <OpuView data={report.opu} onDrill={setDrill} />
+        <OpuView data={report} onDrill={setDrill} />
       ) : (
-        <DdsView data={report.dds} />
+        <DdsView data={report} onDrill={setDrill} />
       )}
 
       {drill && (
         <DrillModal
           article={drill}
-          account={categories.find((c) => c.name === drill.name)?.account ?? '—'}
+          account={drill.account || '—'}
           onClose={() => setDrill(null)}
         />
       )}

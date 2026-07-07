@@ -56,8 +56,10 @@ export function parseCsv(text, template) {
 }
 
 // Строки группируются в документы по (дата + контрагент).
-export function rowsToDocuments(rows, uploadedBy = '') {
+// Категория из CSV (имя) сопоставляется с существующей по имени → categoryId; иначе «без категории».
+export function rowsToDocuments(rows, uploadedBy = '', categories = []) {
   const at = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+  const byName = new Map(categories.map((c) => [String(c.name).toLowerCase(), c]))
   const groups = new Map()
 
   for (const row of rows) {
@@ -75,6 +77,7 @@ export function rowsToDocuments(rows, uploadedBy = '') {
       const qtyValue = parseNumber(r.qty)
       const price = parseNumber(r.price)
       const sum = parseNumber(r.sum) ?? (qtyValue != null && price != null ? Math.round(qtyValue * price) : null)
+      const cat = r.category ? byName.get(String(r.category).toLowerCase()) : null
       return {
         id: `l${i}`,
         name: r.category || 'Позиция',
@@ -82,8 +85,7 @@ export function rowsToDocuments(rows, uploadedBy = '') {
         qtyValue,
         price,
         sum,
-        category: r.category || '',
-        account: r.account || '',
+        categoryId: cat?.id ?? null,
       }
     })
     docs.push({
