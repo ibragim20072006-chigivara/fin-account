@@ -5,11 +5,10 @@ import { parseNumber } from '../import.js'
 import { money } from '../format.js'
 import CategoryForm from './CategoryForm.jsx'
 
-const emptyLine = () => ({ name: '', qty: '', price: '', categoryId: '' })
+const emptyLine = () => ({ name: '', qty: '1', price: '', categoryId: '' })
 
 export default function NewDocument({ onClose }) {
   const { addDocument, categories, removeCategory } = useApp()
-  const [title, setTitle] = useState('')
   const [date, setDate] = useState(() => new Date().toLocaleDateString('ru-RU'))
   const [lines, setLines] = useState([emptyLine()])
   const [showCatForm, setShowCatForm] = useState(false)
@@ -35,7 +34,7 @@ export default function NewDocument({ onClose }) {
     return { ...l, qtyValue, price, sum }
   })
   const total = rows.reduce((s, r) => s + (r.sum ?? 0), 0)
-  const valid = title.trim() && rows.some((r) => r.name.trim())
+  const valid = date.trim() && rows.some((r) => r.name.trim())
 
   const submit = () => {
     if (!valid) return
@@ -49,7 +48,7 @@ export default function NewDocument({ onClose }) {
         sum: r.sum,
         categoryId: r.categoryId || null,
       }))
-    addDocument({ title, date, lines: payload })
+    addDocument({ date, lines: payload })
     onClose()
   }
 
@@ -65,12 +64,8 @@ export default function NewDocument({ onClose }) {
         <div className="modal-body nd-body">
           <div className="nd-fields">
             <label className="nd-field grow">
-              <div className="section-label">НАЗВАНИЕ / НОМЕР</div>
-              <input className="nd-input" autoFocus value={title} placeholder="Напр. Накладная №142" onChange={(e) => setTitle(e.target.value)} />
-            </label>
-            <label className="nd-field">
-              <div className="section-label">ДАТА</div>
-              <input className="nd-input" value={date} onChange={(e) => setDate(e.target.value)} />
+              <div className="section-label">ДАТА ДОКУМЕНТА</div>
+              <input className="nd-input" autoFocus value={date} placeholder="дд.мм.гггг" onChange={(e) => setDate(e.target.value)} />
             </label>
           </div>
 

@@ -296,10 +296,10 @@ export function AppProvider({ children }) {
     }))
     const doc = {
       id, type,
-      title: title?.trim() || 'Документ',
+      title: title?.trim() || date || 'Документ',
       counterparty,
-      subtitle: [counterparty, date].filter(Boolean).join(' · '),
-      panelSubtitle: [counterparty, date, who && `добавил ${who}`].filter(Boolean).join(' · '),
+      subtitle: counterparty,
+      panelSubtitle: [counterparty, who && `добавил ${who}`].filter(Boolean).join(' · '),
       date,
       uploadedBy: who,
       uploadedAt: at,
