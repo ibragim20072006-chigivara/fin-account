@@ -5,6 +5,10 @@ const TOKEN_KEY = 'km_token'
 export const getToken = () => { try { return localStorage.getItem(TOKEN_KEY) } catch { return null } }
 const setToken = (t) => { try { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY) } catch { /* ignore */ } }
 
+// Сессию отозвали на сервере (401) — сообщаем приложению, чтобы вернуть на экран входа.
+let unauthorizedHandler = null
+export const setUnauthorizedHandler = (fn) => { unauthorizedHandler = fn }
+
 async function req(path, { method = 'GET', body } = {}) {
   const headers = {}
   const token = getToken()
@@ -16,6 +20,10 @@ async function req(path, { method = 'GET', body } = {}) {
     body: body !== undefined ? JSON.stringify(body) : undefined,
   })
   const data = await res.json().catch(() => ({}))
+  if (res.status === 401 && path !== '/auth/login' && path !== '/auth/register') {
+    setToken(null)
+    unauthorizedHandler?.()
+  }
   if (!res.ok) throw new Error(data.error || `Ошибка ${res.status}`)
   return data
 }
@@ -36,11 +44,17 @@ export const api = {
   removeUser: (id) => req(`/users/${id}`, { method: 'DELETE' }),
 
   getDocuments: () => req('/documents').then((r) => r.documents),
-  putDocuments: (documents) => req('/documents', { method: 'PUT', body: { documents } }),
+  saveDocument: (doc) => req(`/documents/${doc.id}`, { method: 'PUT', body: { item: doc } }),
+  deleteDocument: (id) => req(`/documents/${id}`, { method: 'DELETE' }),
+
   getCategories: () => req('/categories').then((r) => r.categories),
-  putCategories: (categories) => req('/categories', { method: 'PUT', body: { categories } }),
+  saveCategory: (cat) => req(`/categories/${cat.id}`, { method: 'PUT', body: { item: cat } }),
+  deleteCategory: (id) => req(`/categories/${id}`, { method: 'DELETE' }),
+
   getTemplates: () => req('/templates'),
-  putTemplates: (templates, activeTemplateId) => req('/templates', { method: 'PUT', body: { templates, activeTemplateId } }),
+  saveTemplate: (tpl) => req(`/templates/${tpl.id}`, { method: 'PUT', body: { item: tpl } }),
+  deleteTemplate: (id) => req(`/templates/${id}`, { method: 'DELETE' }),
+  setActiveTemplate: (activeTemplateId) => req('/active-template', { method: 'PUT', body: { activeTemplateId } }),
 }
 
 export function initials(name) {

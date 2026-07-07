@@ -17,10 +17,11 @@ function ColumnEditor({ columns, onChange }) {
     onChange(next)
   }
   const remove = (i) => { if (columns.length > 1) onChange(columns.filter((_, j) => j !== i)) }
+  const used = new Set(columns.map((c) => c.key))
+  const freeField = EXPORT_COLUMNS.find((f) => !used.has(f.key))
   const add = () => {
-    const used = new Set(columns.map((c) => c.key))
-    const field = EXPORT_COLUMNS.find((f) => !used.has(f.key)) ?? EXPORT_COLUMNS[0]
-    onChange([...columns, { key: field.key, label: field.label }])
+    if (!freeField) return
+    onChange([...columns, { key: freeField.key, label: freeField.label }])
   }
 
   return (
@@ -44,7 +45,7 @@ function ColumnEditor({ columns, onChange }) {
           </div>
         </div>
       ))}
-      <button className="keyword-add" onClick={add}>+ колонка</button>
+      <button className="keyword-add" onClick={add} disabled={!freeField}>+ колонка</button>
     </div>
   )
 }

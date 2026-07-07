@@ -1,4 +1,5 @@
 import { EXPORT_COLUMNS } from './data.js'
+import { newId } from './api.js'
 
 // Первое число из строки: "26,4 т" → 26.4, "3 200" → 3200.
 export function parseNumber(value) {
@@ -68,7 +69,6 @@ export function rowsToDocuments(rows, uploadedBy = '') {
   }
 
   const docs = []
-  let n = 0
   for (const [key, groupRows] of groups) {
     const [date, counterparty] = key.split('|')
     const lines = groupRows.map((r, i) => {
@@ -87,7 +87,7 @@ export function rowsToDocuments(rows, uploadedBy = '') {
       }
     })
     docs.push({
-      id: `imp${Date.now().toString(36)}_${n++}`,
+      id: newId('imp'),
       type: 'импорт',
       title: counterparty ? `Импорт · ${counterparty}` : 'Импорт',
       counterparty,
@@ -96,7 +96,7 @@ export function rowsToDocuments(rows, uploadedBy = '') {
       date,
       uploadedBy,
       uploadedAt: at,
-      status: 'ready',
+      status: 'review',
       photoLabel: 'импортировано из файла',
       lines,
     })

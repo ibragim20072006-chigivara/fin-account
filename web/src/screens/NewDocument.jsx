@@ -24,7 +24,7 @@ export default function NewDocument({ onClose }) {
     return { ...l, qtyValue, price, sum }
   })
   const total = rows.reduce((s, r) => s + (r.sum ?? 0), 0)
-  const valid = counterparty.trim() && rows.some((r) => r.name.trim() && r.price != null)
+  const valid = counterparty.trim() && rows.some((r) => r.name.trim())
 
   const submit = () => {
     if (!valid) return

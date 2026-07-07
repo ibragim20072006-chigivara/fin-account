@@ -165,18 +165,19 @@ function FlaggedLine({ doc, line, onFlash }) {
     if (Number.isFinite(price) && price > 0) resolveLine(doc.id, line.id, price)
   }
 
+  const fromAi = !!line.flag
   return (
     <div className="line-flagged">
       <div className="lines-grid line-row">
         <div className="line-name">{line.name}</div>
         <div className="line-num">{line.qty}</div>
-        <div className="line-num bad">{line.priceRaw}</div>
+        <div className="line-num bad">{line.priceRaw ?? '—'}</div>
         <div className="line-num empty">—</div>
         <div className="line-cat"><span className="chip-red">уточнить цену</span></div>
       </div>
       <div className="line-helper">
-        <div className="line-helper-text">ИИ не уверен в цене — на фото:</div>
-        {canEdit && line.candidates.map((p) => (
+        <div className="line-helper-text">{fromAi ? 'ИИ не уверен в цене — на фото:' : 'Укажите цену позиции:'}</div>
+        {canEdit && fromAi && line.candidates?.map((p) => (
           <button key={p} className="price-variant" onClick={() => apply(p)}>{p} ₽</button>
         ))}
         {canEdit && (
@@ -189,7 +190,7 @@ function FlaggedLine({ doc, line, onFlash }) {
             onKeyDown={(e) => { if (e.key === 'Enter') apply(Number(custom)) }}
           />
         )}
-        <button className="link" onClick={onFlash}>показать на фото</button>
+        {fromAi && <button className="link" onClick={onFlash}>показать на фото</button>}
       </div>
     </div>
   )
@@ -200,8 +201,8 @@ function VerifyPanel({ doc }) {
   const [flash, setFlash] = useState(false)
   const status = docStatus(doc)
   const { total, unknown } = docTotal(doc)
-  const flaggedCount = doc.lines.filter((l) => l.flag && !l.resolvedAt).length
-  const flaggedIdx = doc.lines.findIndex((l) => l.flag && !l.resolvedAt) + 1
+  const flaggedCount = doc.lines.filter((l) => l.sum == null && !l.resolvedAt).length
+  const flaggedIdx = doc.lines.findIndex((l) => l.sum == null && !l.resolvedAt) + 1
 
   const doFlash = () => {
     setFlash(false)
@@ -264,7 +265,7 @@ function VerifyPanel({ doc }) {
           </div>
           <div className="lines-scroll">
             {doc.lines.map((l) =>
-              l.flag && !l.resolvedAt
+              l.sum == null && !l.resolvedAt
                 ? <FlaggedLine key={l.id} doc={doc} line={l} onFlash={doFlash} />
                 : <LineRow key={l.id} line={l} resolved={!!l.resolvedAt} />,
             )}

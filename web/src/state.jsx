@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { initialTemplates, aiSuggestion, ROLES } from './data.js'
-import { api, newId } from './api.js'
+import { api, newId, setUnauthorizedHandler } from './api.js'
+
+const REFRESH_MS = 25000 // периодический рефетч: видеть чужие правки, обновлять роль/сессию
 
 const AppContext = createContext(null)
 
@@ -16,9 +18,11 @@ export const DOC_TYPE_LABEL = {
   накладная: 'Накладная', чек: 'Чек', ведомость: 'Ведомость', акт: 'Акт', импорт: 'Импорт',
 }
 
+// Статус — производная от строк: документ «готов», только когда у всех строк есть сумма.
+// Строка без суммы (ИИ не уверен, либо ручной/импортный ввод без цены) держит его в «проверить».
 export function docStatus(doc) {
-  if (doc.status === 'review' && !doc.lines.some((l) => l.flag && !l.resolvedAt)) return 'ready'
-  return doc.status
+  if (doc.status === 'processing' || doc.status === 'shipped') return doc.status
+  return doc.lines.some((l) => l.sum == null) ? 'review' : 'ready'
 }
 
 export function docTotal(doc) {
@@ -82,6 +86,7 @@ export function computeReports(documents, categories) {
 }
 
 const LEGACY_KEYS = ['km_users', 'km_session', 'km_templates', 'km_active_template']
+const nowLabel = () => new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
 
 export function AppProvider({ children }) {
   const [screen, setScreen] = useState('queue')
@@ -98,8 +103,9 @@ export function AppProvider({ children }) {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
 
-  const readyRef = useRef(false)
-  const saveTimers = useRef({})
+  const toastTimer = useRef(null)
+  const saveTimers = useRef({}) // дебаунс частых текстовых правок (лейблы колонок)
+  const sessionEpoch = useRef(0) // растёт при logout/401 — отложенные операции сверяются и не применяются
 
   const role = currentUser ? ROLES[currentUser.role] ?? ROLES.viewer : null
   const canEdit = !!role?.canEdit
@@ -107,23 +113,50 @@ export function AppProvider({ children }) {
 
   const showToast = (text) => {
     setToast(text)
-    window.clearTimeout(showToast._t)
-    showToast._t = window.setTimeout(() => setToast(null), 3200)
+    window.clearTimeout(toastTimer.current)
+    toastTimer.current = window.setTimeout(() => setToast(null), 3200)
   }
 
-  // ===== Загрузка сессии и данных =====
+  // ===== Загрузка/рефетч данных =====
   const loadWorkspace = async () => {
     const [docs, cats, tpls] = await Promise.all([api.getDocuments(), api.getCategories(), api.getTemplates()])
     setDocuments(docs)
     setCategories(cats)
     setTemplates(tpls.templates.length ? tpls.templates : initialTemplates)
     setActiveTemplateId(tpls.activeTemplateId)
-    // ready включаем на следующий тик, чтобы автосейв не сработал на только что загруженных данных
-    window.setTimeout(() => { readyRef.current = true }, 0)
+  }
+
+  // Оптимистичный локальный апдейт уже сделан; фоново пишем на сервер, при ошибке — тост + рефетч (откат).
+  const persistDoc = (doc) => api.saveDocument(doc).catch((e) => { showToast(e.message); refetch('documents') })
+  const persistCat = (cat) => api.saveCategory(cat).catch((e) => { showToast(e.message); refetch('categories') })
+  const removeDocRemote = (id) => api.deleteDocument(id).catch((e) => { showToast(e.message); refetch('documents') })
+
+  const refetch = (kind) => {
+    if (kind === 'documents') return api.getDocuments().then(setDocuments).catch(() => {})
+    if (kind === 'categories') return api.getCategories().then(setCategories).catch(() => {})
+    return api.getTemplates().then((t) => {
+      setTemplates(t.templates.length ? t.templates : initialTemplates)
+      setActiveTemplateId(t.activeTemplateId)
+    }).catch(() => {})
+  }
+
+  const resetSession = () => {
+    sessionEpoch.current += 1
+    Object.values(saveTimers.current).forEach((t) => window.clearTimeout(t))
+    saveTimers.current = {}
+    setCurrentUser(null)
+    setUsers([])
+    setDocuments([])
+    setCategories([])
+    setTemplates(initialTemplates)
+    setActiveTemplateId(null)
+    setSelectedDocId(null)
+    setSelectedCategoryId(null)
   }
 
   useEffect(() => {
     LEGACY_KEYS.forEach((k) => { try { window.localStorage.removeItem(k) } catch { /* ignore */ } })
+    setUnauthorizedHandler(() => { resetSession(); showToast('Сессия завершена — войдите снова') })
     ;(async () => {
       if (api.getToken()) {
         try {
@@ -135,19 +168,20 @@ export function AppProvider({ children }) {
       }
       setLoading(false)
     })()
+    return () => setUnauthorizedHandler(null)
   }, [])
 
-  // ===== Автосохранение коллекций (дебаунс) =====
-  const scheduleSave = (kind, fn) => {
-    if (!readyRef.current) return
-    window.clearTimeout(saveTimers.current[kind])
-    saveTimers.current[kind] = window.setTimeout(() => {
-      fn().catch((e) => showToast(e.message))
-    }, 500)
-  }
-  useEffect(() => { scheduleSave('documents', () => api.putDocuments(documents)) }, [documents])
-  useEffect(() => { scheduleSave('categories', () => api.putCategories(categories)) }, [categories])
-  useEffect(() => { scheduleSave('templates', () => api.putTemplates(templates, activeTemplateId)) }, [templates, activeTemplateId])
+  // Периодический рефетч: чужие правки + актуальная роль/сессия (api.me() при 401 сам вернёт на вход).
+  useEffect(() => {
+    if (!currentUser) return undefined
+    const id = window.setInterval(async () => {
+      try {
+        setCurrentUser(await api.me())
+        await loadWorkspace()
+      } catch { /* ошибки (в т.ч. 401) обрабатываются в api */ }
+    }, REFRESH_MS)
+    return () => window.clearInterval(id)
+  }, [currentUser?.id])
 
   // ===== Авторизация =====
   const register = async ({ name, login, password, role: chosen }) => {
@@ -159,16 +193,8 @@ export function AppProvider({ children }) {
     await loadWorkspace()
   }
   const logout = async () => {
-    await api.logout()
-    readyRef.current = false
-    setCurrentUser(null)
-    setUsers([])
-    setDocuments([])
-    setCategories([])
-    setTemplates(initialTemplates)
-    setActiveTemplateId(null)
-    setSelectedDocId(null)
-    setSelectedCategoryId(null)
+    await api.logout().catch(() => {})
+    resetSession()
   }
 
   // ===== Пользователи (админ) =====
@@ -181,43 +207,53 @@ export function AppProvider({ children }) {
     showToast(`Пользователь «${name}» добавлен`)
   }
   const setUserRole = async (id, nextRole) => {
-    await api.setUserRole(id, nextRole)
-    await loadUsers()
+    try {
+      await api.setUserRole(id, nextRole)
+      if (id === currentUser?.id) setCurrentUser((u) => ({ ...u, role: nextRole }))
+      await loadUsers()
+    } catch (e) { showToast(e.message) }
   }
   const removeUser = async (id) => {
-    await api.removeUser(id)
-    if (id === currentUser?.id) logout()
-    else await loadUsers()
+    try {
+      await api.removeUser(id)
+      if (id === currentUser?.id) logout()
+      else await loadUsers()
+    } catch (e) { showToast(e.message) }
   }
 
   // ===== Документы =====
   const resolveLine = (docId, lineId, price) => {
-    const at = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+    const doc = documents.find((d) => d.id === docId)
+    if (!doc) return
     const by = currentUser?.name ?? ''
-    setDocuments((docs) => docs.map((d) => {
-      if (d.id !== docId) return d
-      const lines = d.lines.map((l) => {
-        if (l.id !== lineId) return l
-        const sum = Math.round((l.qtyValue ?? 1) * price)
-        return { ...l, price, sum, resolvedBy: by, resolvedAt: at }
-      })
-      return { ...d, lines }
-    }))
+    const at = nowLabel()
+    const lines = doc.lines.map((l) => {
+      if (l.id !== lineId) return l
+      const sum = Math.round((l.qtyValue ?? 1) * price)
+      return { ...l, price, sum, resolvedBy: by, resolvedAt: at }
+    })
+    const updated = { ...doc, lines }
+    setDocuments((docs) => docs.map((d) => (d.id === docId ? updated : d)))
+    persistDoc(updated)
   }
 
   const shipDoc = (docId) => {
-    setDocuments((docs) => docs.map((d) => (d.id === docId ? { ...d, status: 'shipped' } : d)))
+    const doc = documents.find((d) => d.id === docId)
+    if (!doc || docTotal(doc).unknown) return
+    const updated = { ...doc, status: 'shipped' }
+    setDocuments((docs) => docs.map((d) => (d.id === docId ? updated : d)))
+    persistDoc(updated)
     showToast('Документ отгружён в учёт')
   }
 
   const shipReady = () => {
-    let n = 0
-    setDocuments((docs) => docs.map((d) => {
-      if (docStatus(d) === 'ready') { n += 1; return { ...d, status: 'shipped' } }
-      return d
-    }))
+    const ready = documents.filter((d) => docStatus(d) === 'ready' && !docTotal(d).unknown)
+    if (!ready.length) return 0
+    const shippedIds = new Set(ready.map((d) => d.id))
+    setDocuments((docs) => docs.map((d) => (shippedIds.has(d.id) ? { ...d, status: 'shipped' } : d)))
+    ready.forEach((d) => persistDoc({ ...d, status: 'shipped' }))
     showToast('Готовые документы отгружены в учёт')
-    return n
+    return ready.length
   }
 
   const openDocInQueue = (docId) => {
@@ -228,7 +264,7 @@ export function AppProvider({ children }) {
   const accountOfCategory = (name) => categories.find((c) => c.name === name)?.account ?? ''
 
   const addDocument = ({ type = 'накладная', title, counterparty, date, lines }) => {
-    const at = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+    const at = nowLabel()
     const id = newId('doc')
     const cleanLines = lines.map((l, i) => ({
       id: `l${i}`,
@@ -249,12 +285,13 @@ export function AppProvider({ children }) {
       date: date ?? '',
       uploadedBy: currentUser?.name ?? '',
       uploadedAt: at,
-      status: 'ready',
+      status: 'review',
       photoLabel: 'документ добавлен вручную',
       lines: cleanLines,
     }
     setDocuments((docs) => [doc, ...docs])
     setSelectedDocId(id)
+    persistDoc(doc)
     showToast('Документ добавлен в очередь')
     return id
   }
@@ -267,20 +304,25 @@ export function AppProvider({ children }) {
     }))
     setDocuments((prev) => [...withAccount, ...prev])
     setSelectedDocId(withAccount[0].id)
+    withAccount.forEach(persistDoc)
     return withAccount.length
   }
 
   // ===== Категории =====
   const addKeyword = (categoryId, word) => {
-    setCategories((cats) => cats.map((c) => (
-      c.id === categoryId && word && !c.keywords.includes(word)
-        ? { ...c, keywords: [...c.keywords, word] }
-        : c
-    )))
+    const cat = categories.find((c) => c.id === categoryId)
+    if (!cat || !word || cat.keywords.includes(word)) return
+    const updated = { ...cat, keywords: [...cat.keywords, word] }
+    setCategories((cats) => cats.map((c) => (c.id === categoryId ? updated : c)))
+    persistCat(updated)
   }
 
   const setThreshold = (categoryId, threshold) => {
-    setCategories((cats) => cats.map((c) => (c.id === categoryId ? { ...c, threshold } : c)))
+    const cat = categories.find((c) => c.id === categoryId)
+    if (!cat) return
+    const updated = { ...cat, threshold }
+    setCategories((cats) => cats.map((c) => (c.id === categoryId ? updated : c)))
+    persistCat(updated)
   }
 
   const createSuggestedCategory = () => {
@@ -295,12 +337,23 @@ export function AppProvider({ children }) {
     setCategories((cats) => [...cats, cat])
     setSelectedCategoryId(cat.id)
     setSuggestion(null)
+    persistCat(cat)
     showToast(`Категория «${cat.name}» создана`)
   }
 
   // ===== Шаблоны =====
   const activeTemplate = templates.find((t) => t.id === activeTemplateId)
     ?? templates.find((t) => t.isDefault) ?? templates[0]
+
+  // Дебаунс на текстовые правки шаблона (лейблы колонок), чтобы не слать запрос на каждое нажатие.
+  const saveTemplateDebounced = (tpl) => {
+    const epoch = sessionEpoch.current
+    window.clearTimeout(saveTimers.current[tpl.id])
+    saveTimers.current[tpl.id] = window.setTimeout(() => {
+      if (epoch !== sessionEpoch.current) return
+      api.saveTemplate(tpl).catch((e) => { showToast(e.message); refetch('templates') })
+    }, 400)
+  }
 
   const addTemplate = (name) => {
     const tpl = {
@@ -310,22 +363,38 @@ export function AppProvider({ children }) {
       columns: activeTemplate?.columns?.map((c) => ({ ...c })) ?? [],
     }
     setTemplates((ts) => [...ts, tpl])
+    api.saveTemplate(tpl).catch((e) => { showToast(e.message); refetch('templates') })
     return tpl.id
   }
   const renameTemplate = (id, name) => {
     const trimmed = (name ?? '').trim()
-    if (!trimmed) return
-    setTemplates((ts) => ts.map((t) => (t.id === id ? { ...t, name: trimmed } : t)))
+    const tpl = templates.find((t) => t.id === id)
+    if (!trimmed || !tpl) return
+    const updated = { ...tpl, name: trimmed }
+    setTemplates((ts) => ts.map((t) => (t.id === id ? updated : t)))
+    api.saveTemplate(updated).catch((e) => { showToast(e.message); refetch('templates') })
   }
   const updateTemplateColumns = (id, columns) => {
     if (!columns.length) return
-    setTemplates((ts) => ts.map((t) => (t.id === id ? { ...t, columns } : t)))
+    const tpl = templates.find((t) => t.id === id)
+    if (!tpl) return
+    const updated = { ...tpl, columns }
+    setTemplates((ts) => ts.map((t) => (t.id === id ? updated : t)))
+    saveTemplateDebounced(updated)
   }
   const removeTemplate = (id) => {
-    setTemplates((ts) => (ts.length <= 1 ? ts : ts.filter((t) => t.id !== id)))
-    if (id === activeTemplateId) setActiveTemplateId(null)
+    if (templates.length <= 1) return
+    setTemplates((ts) => ts.filter((t) => t.id !== id))
+    api.deleteTemplate(id).catch((e) => { showToast(e.message); refetch('templates') })
+    if (id === activeTemplateId) {
+      setActiveTemplateId(null)
+      api.setActiveTemplate(null).catch(() => {})
+    }
   }
-  const setActiveTemplate = (id) => setActiveTemplateId(id)
+  const setActiveTemplate = (id) => {
+    setActiveTemplateId(id)
+    api.setActiveTemplate(id).catch((e) => { showToast(e.message); refetch('templates') })
+  }
 
   const value = useMemo(() => ({
     loading,

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Camera, Inbox, BarChart3, Settings as SettingsIcon, BookOpen } from 'lucide-react'
 import { useApp } from './state.jsx'
 import Sidebar from './components/Sidebar.jsx'
@@ -19,6 +19,19 @@ const SCREENS = {
   templates: Templates,
   settings: Settings,
   guide: Guide,
+}
+
+// Рендерим только активную оболочку (десктоп/мобайл) — брейкпоинт как в styles.css (767px).
+function useMediaQuery(query) {
+  const [matches, setMatches] = useState(() => window.matchMedia(query).matches)
+  useEffect(() => {
+    const mql = window.matchMedia(query)
+    const onChange = () => setMatches(mql.matches)
+    mql.addEventListener('change', onChange)
+    setMatches(mql.matches)
+    return () => mql.removeEventListener('change', onChange)
+  }, [query])
+  return matches
 }
 
 function Desktop() {
@@ -66,6 +79,7 @@ function Mobile() {
 
 export default function App() {
   const { currentUser, loading, toast } = useApp()
+  const isMobile = useMediaQuery('(max-width: 767px)')
 
   if (loading) {
     return (
@@ -86,8 +100,7 @@ export default function App() {
 
   return (
     <>
-      <Desktop />
-      <Mobile />
+      {isMobile ? <Mobile /> : <Desktop />}
       {toast && <div className="toast">{toast}</div>}
     </>
   )

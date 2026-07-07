@@ -73,7 +73,10 @@ function AddUser() {
 function TeamCard() {
   const { users, currentUser, isAdmin, setUserRole, removeUser, loadUsers } = useApp()
 
-  useEffect(() => { loadUsers() }, [])
+  // Список команды — только для админа (эндпоинт admin-only). Остальным показываем свой аккаунт.
+  useEffect(() => { if (isAdmin) loadUsers() }, [isAdmin])
+
+  const rows = isAdmin ? users : [{ id: currentUser.id, name: currentUser.name, role: currentUser.role }]
 
   return (
     <div className="team-card card">
@@ -82,7 +85,7 @@ function TeamCard() {
         <div className="spacer" />
         {isAdmin && <AddUser />}
       </div>
-      {users.map((u) => {
+      {rows.map((u) => {
         const isMe = u.id === currentUser.id
         return (
           <div key={u.id} className="team-row">
