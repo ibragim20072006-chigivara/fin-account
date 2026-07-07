@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { initialTemplates, aiSuggestion, ROLES } from './data.js'
 import { api, newId, setUnauthorizedHandler } from './api.js'
+import { parseNumber } from './import.js'
 
 const REFRESH_MS = 25000 // периодический рефетч: видеть чужие правки, обновлять роль/сессию
 
@@ -280,9 +281,10 @@ export function AppProvider({ children }) {
     if (docId) setSelectedDocId(docId)
   }
 
-  const addDocument = ({ type = 'накладная', title, counterparty, date, lines }) => {
+  const addDocument = ({ type = 'накладная', title, counterparty = '', date = '', lines }) => {
     const at = nowLabel()
     const id = newId('doc')
+    const who = currentUser?.name ?? ''
     const cleanLines = lines.map((l, i) => ({
       id: `l${i}`,
       name: l.name,
@@ -294,12 +296,12 @@ export function AppProvider({ children }) {
     }))
     const doc = {
       id, type,
-      title: title?.trim() || DOC_TYPE_LABEL[type] || 'Документ',
-      counterparty: counterparty ?? '',
-      subtitle: counterparty ?? '',
-      panelSubtitle: `${counterparty ?? ''} · ${date ?? ''} · добавил ${currentUser?.name ?? ''}`,
-      date: date ?? '',
-      uploadedBy: currentUser?.name ?? '',
+      title: title?.trim() || 'Документ',
+      counterparty,
+      subtitle: [counterparty, date].filter(Boolean).join(' · '),
+      panelSubtitle: [counterparty, date, who && `добавил ${who}`].filter(Boolean).join(' · '),
+      date,
+      uploadedBy: who,
       uploadedAt: at,
       status: 'review',
       photoLabel: 'документ добавлен вручную',
@@ -310,6 +312,31 @@ export function AppProvider({ children }) {
     persistDoc(doc)
     showToast('Документ добавлен в очередь')
     return id
+  }
+
+  // Правка/удаление позиции — работает и для отгруженных документов (отчёты пересчитываются).
+  const updateLine = (docId, lineId, { name, qty, price, categoryId }) => {
+    const doc = documents.find((d) => d.id === docId)
+    if (!doc) return
+    const qtyValue = parseNumber(qty)
+    const sum = price != null ? Math.round((qtyValue ?? 1) * price) : null
+    const lines = doc.lines.map((l) => (l.id === lineId
+      ? {
+        ...l, name, qty, qtyValue, price, sum, categoryId: categoryId || null,
+        flag: undefined, resolvedAt: undefined, resolvedBy: undefined, priceRaw: undefined, candidates: undefined,
+      }
+      : l))
+    const updated = { ...doc, lines }
+    setDocuments((docs) => docs.map((d) => (d.id === docId ? updated : d)))
+    persistDoc(updated)
+  }
+
+  const removeLine = (docId, lineId) => {
+    const doc = documents.find((d) => d.id === docId)
+    if (!doc) return
+    const updated = { ...doc, lines: doc.lines.filter((l) => l.id !== lineId) }
+    setDocuments((docs) => docs.map((d) => (d.id === docId ? updated : d)))
+    persistDoc(updated)
   }
 
   const addDocuments = (docs) => {
@@ -332,6 +359,12 @@ export function AppProvider({ children }) {
     persistCat(cat)
     showToast(`Категория «${cat.name}» создана`)
     return cat.id
+  }
+
+  const removeCategory = (id) => {
+    setCategories((cats) => cats.filter((c) => c.id !== id))
+    if (id === selectedCategoryId) setSelectedCategoryId(null)
+    api.deleteCategory(id).catch((e) => { showToast(e.message); refetch('categories') })
   }
 
   const addKeyword = (categoryId, word) => {
@@ -431,8 +464,8 @@ export function AppProvider({ children }) {
     currentUser, role, canEdit, isAdmin,
     users, loadUsers, register, login: loginUser, logout, addUser, setUserRole, removeUser,
     resolveLine, shipDoc, shipReady, openDocInQueue,
-    addDocument, addDocuments,
-    addCategory, addKeyword, setThreshold, createSuggestedCategory,
+    addDocument, addDocuments, updateLine, removeLine,
+    addCategory, removeCategory, addKeyword, setThreshold, createSuggestedCategory,
     getCategory, categoryOfLine,
     toast, showToast,
   }), [loading, screen, documents, selectedDocId, categories, selectedCategoryId,

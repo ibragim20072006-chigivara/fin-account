@@ -1,7 +1,8 @@
 import { useMemo, useRef, useState } from 'react'
+import { Pencil, X } from 'lucide-react'
 import { useApp, docStatus, docTotal } from '../state.jsx'
 import { StatusChip, DocCard, plural } from '../components/ui.jsx'
-import { parseCsv, rowsToDocuments } from '../import.js'
+import { parseCsv, rowsToDocuments, parseNumber } from '../import.js'
 import NewDocument from './NewDocument.jsx'
 import { money } from '../format.js'
 
@@ -142,23 +143,65 @@ function PhotoPane({ doc, flash }) {
   )
 }
 
-function LineRow({ line, resolved, catName }) {
+function CategorySelect({ value, onChange }) {
+  const { categories } = useApp()
+  const income = categories.filter((c) => c.kind === 'income')
+  const expense = categories.filter((c) => c.kind === 'expense')
   return (
-    <div className={`lines-grid line-row${resolved ? ' line-resolved' : ''}`}>
-      <div className="line-name">
-        {line.name}
-        {resolved && <span className="line-note"> исправлено · {line.resolvedBy} {line.resolvedAt}</span>}
+    <select className="role-select" value={value} onChange={onChange}>
+      <option value="">— категория —</option>
+      {income.length > 0 && <optgroup label="Приход">{income.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</optgroup>}
+      {expense.length > 0 && <optgroup label="Расход">{expense.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</optgroup>}
+    </select>
+  )
+}
+
+// Позиция документа: просмотр + встроенная правка и удаление (работают и для отгруженных).
+function EditableLine({ doc, line, resolved, catName }) {
+  const { updateLine, removeLine, canEdit } = useApp()
+  const [d, setD] = useState(null)
+
+  const start = () => setD({
+    name: line.name ?? '', qty: line.qty ?? '',
+    price: line.price != null ? String(line.price) : '', categoryId: line.categoryId ?? '',
+  })
+  const save = () => {
+    updateLine(doc.id, line.id, { name: d.name.trim() || line.name, qty: d.qty, price: parseNumber(d.price), categoryId: d.categoryId })
+    setD(null)
+  }
+
+  return (
+    <>
+      <div className={`lines-grid line-row${resolved ? ' line-resolved' : ''}`}>
+        <div className="line-name">
+          {line.name}
+          {resolved && <span className="line-note"> исправлено · {line.resolvedBy} {line.resolvedAt}</span>}
+        </div>
+        <div className="line-num">{line.qty}</div>
+        <div className="line-num">{money(line.price)}</div>
+        <div className="line-num">{money(line.sum)}</div>
+        <div className="line-cat">{catName && <span className="cat-chip">{catName}</span>}</div>
+        <div className="line-actions">
+          {canEdit && !d && <button className="line-act" title="Редактировать" onClick={start}><Pencil size={13} strokeWidth={2} /></button>}
+          {canEdit && <button className="line-act" title="Удалить позицию" onClick={() => removeLine(doc.id, line.id)}><X size={14} strokeWidth={2} /></button>}
+        </div>
       </div>
-      <div className="line-num">{line.qty}</div>
-      <div className="line-num">{money(line.price)}</div>
-      <div className="line-num">{money(line.sum)}</div>
-      <div className="line-cat">{catName && <span className="cat-chip">{catName}</span>}</div>
-    </div>
+      {d && (
+        <div className="line-editor">
+          <input className="nd-input" style={{ width: 170 }} autoFocus value={d.name} placeholder="Название" onChange={(e) => setD({ ...d, name: e.target.value })} />
+          <input className="nd-input" style={{ width: 72 }} value={d.qty} placeholder="кол-во" onChange={(e) => setD({ ...d, qty: e.target.value })} />
+          <input className="nd-input" style={{ width: 84 }} value={d.price} placeholder="цена" inputMode="numeric" onChange={(e) => setD({ ...d, price: e.target.value })} />
+          <CategorySelect value={d.categoryId} onChange={(e) => setD({ ...d, categoryId: e.target.value })} />
+          <button className="btn-primary sm" onClick={save}>Сохранить</button>
+          <button className="btn-ghost sm" onClick={() => setD(null)}>Отмена</button>
+        </div>
+      )}
+    </>
   )
 }
 
 function FlaggedLine({ doc, line, onFlash }) {
-  const { resolveLine, canEdit } = useApp()
+  const { resolveLine, removeLine, canEdit } = useApp()
   const [custom, setCustom] = useState('')
 
   const apply = (price) => {
@@ -174,6 +217,9 @@ function FlaggedLine({ doc, line, onFlash }) {
         <div className="line-num bad">{line.priceRaw ?? '—'}</div>
         <div className="line-num empty">—</div>
         <div className="line-cat"><span className="chip-red">уточнить цену</span></div>
+        <div className="line-actions">
+          {canEdit && <button className="line-act" title="Удалить позицию" onClick={() => removeLine(doc.id, line.id)}><X size={14} strokeWidth={2} /></button>}
+        </div>
       </div>
       <div className="line-helper">
         <div className="line-helper-text">{fromAi ? 'ИИ не уверен в цене — на фото:' : 'Укажите цену позиции:'}</div>
@@ -262,12 +308,13 @@ function VerifyPanel({ doc }) {
             <div className="num-r">ЦЕНА</div>
             <div className="num-r">СУММА</div>
             <div className="pl12">КАТЕГОРИЯ</div>
+            <div />
           </div>
           <div className="lines-scroll">
             {doc.lines.map((l) =>
               l.sum == null && !l.resolvedAt
                 ? <FlaggedLine key={l.id} doc={doc} line={l} onFlash={doFlash} />
-                : <LineRow key={l.id} line={l} resolved={!!l.resolvedAt} catName={categoryOfLine(l)?.name ?? ''} />,
+                : <EditableLine key={l.id} doc={doc} line={l} resolved={!!l.resolvedAt} catName={categoryOfLine(l)?.name ?? ''} />,
             )}
           </div>
           <div className="lines-footer">

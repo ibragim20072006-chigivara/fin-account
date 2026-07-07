@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useApp, DOC_TYPES, DOC_TYPE_LABEL } from '../state.jsx'
+import { useApp } from '../state.jsx'
 import { parseNumber } from '../import.js'
 import { money } from '../format.js'
 import CategoryForm from './CategoryForm.jsx'
@@ -8,9 +8,7 @@ const emptyLine = () => ({ name: '', qty: '', price: '', categoryId: '' })
 
 export default function NewDocument({ onClose }) {
   const { addDocument, categories } = useApp()
-  const [type, setType] = useState('накладная')
   const [title, setTitle] = useState('')
-  const [counterparty, setCounterparty] = useState('')
   const [date, setDate] = useState(() => new Date().toLocaleDateString('ru-RU'))
   const [lines, setLines] = useState([emptyLine()])
   const [showCatForm, setShowCatForm] = useState(false)
@@ -29,7 +27,7 @@ export default function NewDocument({ onClose }) {
     return { ...l, qtyValue, price, sum }
   })
   const total = rows.reduce((s, r) => s + (r.sum ?? 0), 0)
-  const valid = counterparty.trim() && rows.some((r) => r.name.trim())
+  const valid = title.trim() && rows.some((r) => r.name.trim())
 
   const submit = () => {
     if (!valid) return
@@ -43,7 +41,7 @@ export default function NewDocument({ onClose }) {
         sum: r.sum,
         categoryId: r.categoryId || null,
       }))
-    addDocument({ type, title, counterparty, date, lines: payload })
+    addDocument({ title, date, lines: payload })
     onClose()
   }
 
@@ -58,26 +56,19 @@ export default function NewDocument({ onClose }) {
 
         <div className="modal-body nd-body">
           <div className="nd-fields">
-            <label className="nd-field">
-              <div className="section-label">ТИП</div>
-              <select className="role-select nd-select" value={type} onChange={(e) => setType(e.target.value)}>
-                {DOC_TYPES.map((t) => <option key={t} value={t}>{DOC_TYPE_LABEL[t]}</option>)}
-              </select>
-            </label>
             <label className="nd-field grow">
               <div className="section-label">НАЗВАНИЕ / НОМЕР</div>
-              <input className="nd-input" value={title} placeholder={DOC_TYPE_LABEL[type]} onChange={(e) => setTitle(e.target.value)} />
-            </label>
-          </div>
-          <div className="nd-fields">
-            <label className="nd-field grow">
-              <div className="section-label">КОНТРАГЕНТ</div>
-              <input className="nd-input" value={counterparty} placeholder="Кто выставил документ" onChange={(e) => setCounterparty(e.target.value)} />
+              <input className="nd-input" autoFocus value={title} placeholder="Напр. Накладная №142" onChange={(e) => setTitle(e.target.value)} />
             </label>
             <label className="nd-field">
               <div className="section-label">ДАТА</div>
               <input className="nd-input" value={date} onChange={(e) => setDate(e.target.value)} />
             </label>
+          </div>
+
+          <div className="nd-hint">
+            Впишите позиции: название, количество, цену и категорию (приход или расход).
+            Если цены пока нет — оставьте пустой, укажете позже в очереди.
           </div>
 
           <div className="section-label" style={{ marginTop: 6 }}>ПОЗИЦИИ</div>

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { X } from 'lucide-react'
 import { useApp } from '../state.jsx'
 import { Segment } from '../components/ui.jsx'
 import { money, rub } from '../format.js'
@@ -36,7 +37,7 @@ function AiBanner() {
 }
 
 function CategoryDetail({ cat }) {
-  const { addKeyword, setThreshold, showToast, canEdit } = useApp()
+  const { addKeyword, setThreshold, removeCategory, showToast, canEdit } = useApp()
   const [adding, setAdding] = useState(false)
   const [word, setWord] = useState('')
 
@@ -52,6 +53,11 @@ function CategoryDetail({ cat }) {
       <div className="detail-head">
         <div className="detail-title">{cat.name}</div>
         <span className="chip neutral">{cat.kind === 'income' ? 'приход' : 'расход'}</span>
+        {canEdit && (
+          <button className="cat-del" title="Удалить категорию" onClick={() => removeCategory(cat.id)}>
+            <X size={14} strokeWidth={2} />
+          </button>
+        )}
         <div className="spacer" />
         {canEdit && <button className="btn-ghost sm" onClick={() => showToast('Переименование доступно владельцу категории')}>переименовать</button>}
       </div>
