@@ -322,6 +322,8 @@ input { font-family: inherit; }
   padding: 10px 16px 12px; background: var(--thead-bg); border-bottom: 1px solid var(--divider);
 }
 .nd-cat-cell { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.verify-del { display: inline-flex; align-items: center; gap: 5px; }
+.verify-del:hover { color: var(--danger); border-color: var(--danger-border); }
 .nd-hint { font-size: 12px; line-height: 1.4; color: var(--text-3); margin: 2px 0 2px; }
 
 .line-flagged { background: var(--danger-row); }

@@ -243,7 +243,7 @@ function FlaggedLine({ doc, line, onFlash }) {
 }
 
 function VerifyPanel({ doc }) {
-  const { shipDoc, canEdit, categoryOfLine } = useApp()
+  const { shipDoc, removeDocument, canEdit, categoryOfLine } = useApp()
   const [flash, setFlash] = useState(false)
   const status = docStatus(doc)
   const { total, unknown } = docTotal(doc)
@@ -293,8 +293,11 @@ function VerifyPanel({ doc }) {
           <div className="verify-sub">{doc.panelSubtitle}</div>
         </div>
         <div className="verify-head-actions">
-          <button className="btn-ghost">шаблон_учёт.xlsx ⤓</button>
-          <button className="btn-ghost">история</button>
+          {canEdit && (
+            <button className="btn-ghost verify-del" onClick={() => removeDocument(doc.id)}>
+              <X size={14} strokeWidth={2} /> удалить документ
+            </button>
+          )}
         </div>
       </div>
 

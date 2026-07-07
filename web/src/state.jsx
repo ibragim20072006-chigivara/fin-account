@@ -314,6 +314,13 @@ export function AppProvider({ children }) {
     return id
   }
 
+  const removeDocument = (docId) => {
+    setDocuments((docs) => docs.filter((d) => d.id !== docId))
+    if (docId === selectedDocId) setSelectedDocId(null)
+    api.deleteDocument(docId).catch((e) => { showToast(e.message); refetch('documents') })
+    showToast('Документ удалён')
+  }
+
   // Правка/удаление позиции — работает и для отгруженных документов (отчёты пересчитываются).
   const updateLine = (docId, lineId, { name, qty, price, categoryId }) => {
     const doc = documents.find((d) => d.id === docId)
@@ -334,7 +341,10 @@ export function AppProvider({ children }) {
   const removeLine = (docId, lineId) => {
     const doc = documents.find((d) => d.id === docId)
     if (!doc) return
-    const updated = { ...doc, lines: doc.lines.filter((l) => l.id !== lineId) }
+    const lines = doc.lines.filter((l) => l.id !== lineId)
+    // Документ без позиций смысла не имеет — убираем его целиком из очереди.
+    if (!lines.length) { removeDocument(docId); return }
+    const updated = { ...doc, lines }
     setDocuments((docs) => docs.map((d) => (d.id === docId ? updated : d)))
     persistDoc(updated)
   }
@@ -464,7 +474,7 @@ export function AppProvider({ children }) {
     currentUser, role, canEdit, isAdmin,
     users, loadUsers, register, login: loginUser, logout, addUser, setUserRole, removeUser,
     resolveLine, shipDoc, shipReady, openDocInQueue,
-    addDocument, addDocuments, updateLine, removeLine,
+    addDocument, addDocuments, updateLine, removeLine, removeDocument,
     addCategory, removeCategory, addKeyword, setThreshold, createSuggestedCategory,
     getCategory, categoryOfLine,
     toast, showToast,
