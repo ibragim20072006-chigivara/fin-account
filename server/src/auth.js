@@ -1,10 +1,11 @@
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
 import { db } from './db.js'
 
+// Держать синхронно с ROLES в web/src/data.js (те же ключи и флаги canEdit/isAdmin).
 export const ROLES = {
-  viewer: { canEdit: false, admin: false },
-  editor: { canEdit: true, admin: false },
-  admin: { canEdit: true, admin: true },
+  viewer: { canEdit: false, isAdmin: false },
+  editor: { canEdit: true, isAdmin: false },
+  admin: { canEdit: true, isAdmin: true },
 }
 
 export function hashPassword(password) {
@@ -59,7 +60,7 @@ export function requireEditor(req, res, next) {
 
 export function requireAdmin(req, res, next) {
   requireAuth(req, res, () => {
-    if (!ROLES[req.user.role]?.admin) return res.status(403).json({ error: 'Только для администратора' })
+    if (!ROLES[req.user.role]?.isAdmin) return res.status(403).json({ error: 'Только для администратора' })
     next()
   })
 }

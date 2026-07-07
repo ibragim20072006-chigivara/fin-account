@@ -22,11 +22,19 @@ db.exec(`
     user_id TEXT NOT NULL,
     created_at INTEGER NOT NULL
   );
-  CREATE TABLE IF NOT EXISTS documents (id TEXT PRIMARY KEY, data TEXT NOT NULL, updated_at INTEGER NOT NULL);
-  CREATE TABLE IF NOT EXISTS categories (id TEXT PRIMARY KEY, data TEXT NOT NULL);
-  CREATE TABLE IF NOT EXISTS templates (id TEXT PRIMARY KEY, data TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS documents (id TEXT PRIMARY KEY, data TEXT NOT NULL, updated_at INTEGER);
+  CREATE TABLE IF NOT EXISTS categories (id TEXT PRIMARY KEY, data TEXT NOT NULL, updated_at INTEGER);
+  CREATE TABLE IF NOT EXISTS templates (id TEXT PRIMARY KEY, data TEXT NOT NULL, updated_at INTEGER);
   CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
 `)
+
+// Миграция старых баз: добавить updated_at, если колонки ещё нет.
+for (const table of ['categories', 'templates']) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all()
+  if (!cols.some((c) => c.name === 'updated_at')) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN updated_at INTEGER`)
+  }
+}
 
 // Дефолтный шаблон выгрузки — сид при пустой таблице (шаблоны «не удаляются»).
 const EXPORT_COLUMNS = [
@@ -41,7 +49,7 @@ const EXPORT_COLUMNS = [
 
 if (db.prepare('SELECT COUNT(*) AS n FROM templates').get().n === 0) {
   const tpl = { id: 'main', name: 'шаблон_учёт', isDefault: true, columns: EXPORT_COLUMNS }
-  db.prepare('INSERT INTO templates(id, data) VALUES(?, ?)').run(tpl.id, JSON.stringify(tpl))
+  db.prepare('INSERT INTO templates(id, data, updated_at) VALUES(?, ?, ?)').run(tpl.id, JSON.stringify(tpl), Date.now())
   db.prepare('INSERT OR REPLACE INTO settings(key, value) VALUES(?, ?)').run('activeTemplateId', JSON.stringify('main'))
 }
 
@@ -50,24 +58,16 @@ export function getCollection(table) {
   return db.prepare(`SELECT data FROM ${table}`).all().map((r) => JSON.parse(r.data))
 }
 
-export function putCollection(table, items, withUpdated = false) {
-  db.exec('BEGIN')
-  try {
-    db.prepare(`DELETE FROM ${table}`).run()
-    const sql = withUpdated
-      ? `INSERT INTO ${table}(id, data, updated_at) VALUES(?, ?, ?)`
-      : `INSERT INTO ${table}(id, data) VALUES(?, ?)`
-    const insert = db.prepare(sql)
-    for (const it of items) {
-      if (!it || it.id == null) continue
-      if (withUpdated) insert.run(String(it.id), JSON.stringify(it), Date.now())
-      else insert.run(String(it.id), JSON.stringify(it))
-    }
-    db.exec('COMMIT')
-  } catch (e) {
-    db.exec('ROLLBACK')
-    throw e
-  }
+// Поштучное сохранение: не трогает остальные строки — правки разных редакторов не затирают друг друга.
+export function upsertItem(table, item) {
+  db.prepare(`
+    INSERT INTO ${table}(id, data, updated_at) VALUES(?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at
+  `).run(String(item.id), JSON.stringify(item), Date.now())
+}
+
+export function deleteItem(table, id) {
+  db.prepare(`DELETE FROM ${table} WHERE id = ?`).run(String(id))
 }
 
 export function getSetting(key) {

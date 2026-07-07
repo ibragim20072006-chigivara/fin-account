@@ -2,7 +2,7 @@ import express from 'express'
 import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
-import { db, getCollection, putCollection, getSetting, setSetting } from './db.js'
+import { db, getCollection, upsertItem, deleteItem, getSetting, setSetting } from './db.js'
 import {
   ROLES, hashPassword, verifyPassword, createSession, deleteSession,
   tokenFromReq, requireAuth, requireEditor, requireAdmin,
@@ -12,7 +12,11 @@ const here = dirname(fileURLToPath(import.meta.url))
 try { process.loadEnvFile(join(here, '..', '.env')) } catch { /* .env необязателен */ }
 
 const app = express()
+// За cloudflared/Caddy (localhost + X-Forwarded-For) — иначе req.ip у всех был бы адресом прокси.
+app.set('trust proxy', 'loopback')
 app.use(express.json({ limit: '10mb' }))
+
+const adminCount = () => db.prepare("SELECT COUNT(*) AS n FROM users WHERE role = 'admin'").get().n
 
 const publicUser = (u) => ({ id: u.id, name: u.name, login: u.login, role: u.role })
 const newId = (p) => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
@@ -65,8 +69,9 @@ app.get('/api/users', requireAdmin, (req, res) => {
 app.post('/api/users', requireAdmin, (req, res) => {
   const name = clean(req.body?.name), login = clean(req.body?.login), password = req.body?.password
   if (!name || !login || !password) return res.status(400).json({ error: 'Заполните имя, логин и пароль' })
+  if (req.body?.role != null && !ROLES[req.body.role]) return res.status(400).json({ error: 'Неизвестная роль' })
   if (db.prepare('SELECT 1 FROM users WHERE login = ?').get(login)) return res.status(409).json({ error: 'Логин занят' })
-  const role = ROLES[req.body?.role] ? req.body.role : 'viewer'
+  const role = req.body?.role || 'viewer'
   const user = { id: newId('u'), name, login, role }
   db.prepare('INSERT INTO users(id, name, login, password_hash, role, created_at) VALUES(?, ?, ?, ?, ?, ?)')
     .run(user.id, name, login, hashPassword(password), role, Date.now())
@@ -76,34 +81,59 @@ app.post('/api/users', requireAdmin, (req, res) => {
 app.patch('/api/users/:id', requireAdmin, (req, res) => {
   const role = req.body?.role
   if (!ROLES[role]) return res.status(400).json({ error: 'Неизвестная роль' })
+  const target = db.prepare('SELECT role FROM users WHERE id = ?').get(req.params.id)
+  if (!target) return res.status(404).json({ error: 'Пользователь не найден' })
+  if (target.role === 'admin' && role !== 'admin' && adminCount() <= 1) {
+    return res.status(409).json({ error: 'Нельзя убрать последнего администратора' })
+  }
   db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, req.params.id)
   res.json({ ok: true })
 })
 
 app.delete('/api/users/:id', requireAdmin, (req, res) => {
+  const target = db.prepare('SELECT role FROM users WHERE id = ?').get(req.params.id)
+  if (target?.role === 'admin' && adminCount() <= 1) {
+    return res.status(409).json({ error: 'Нельзя удалить последнего администратора' })
+  }
   db.prepare('DELETE FROM sessions WHERE user_id = ?').run(req.params.id)
   db.prepare('DELETE FROM users WHERE id = ?').run(req.params.id)
   res.json({ ok: true })
 })
 
-// ===== Данные (общая база) =====
-app.get('/api/documents', requireAuth, (req, res) => res.json({ documents: getCollection('documents') }))
-app.put('/api/documents', requireEditor, (req, res) => {
-  putCollection('documents', req.body?.documents || [], true)
-  res.json({ ok: true })
-})
+// ===== Данные (общая база) — поштучно, чтобы правки разных редакторов не затирали друг друга =====
+function collectionRoutes(name, role) {
+  app.get(`/api/${name}`, requireAuth, (req, res) => res.json({ [name]: getCollection(name) }))
+  app.put(`/api/${name}/:id`, role, (req, res) => {
+    const item = req.body?.item
+    if (!item || item.id == null) return res.status(400).json({ error: 'Нет элемента' })
+    if (String(item.id) !== req.params.id) return res.status(400).json({ error: 'id не совпадает' })
+    upsertItem(name, item)
+    res.json({ ok: true })
+  })
+  app.delete(`/api/${name}/:id`, role, (req, res) => {
+    deleteItem(name, req.params.id)
+    res.json({ ok: true })
+  })
+}
+collectionRoutes('documents', requireEditor)
+collectionRoutes('categories', requireEditor)
 
-app.get('/api/categories', requireAuth, (req, res) => res.json({ categories: getCollection('categories') }))
-app.put('/api/categories', requireEditor, (req, res) => {
-  putCollection('categories', req.body?.categories || [])
-  res.json({ ok: true })
-})
-
+// templates: GET отдаёт и активный шаблон; PUT/DELETE — поштучно; активный — отдельным роутом.
 app.get('/api/templates', requireAuth, (req, res) => {
   res.json({ templates: getCollection('templates'), activeTemplateId: getSetting('activeTemplateId') })
 })
-app.put('/api/templates', requireEditor, (req, res) => {
-  putCollection('templates', req.body?.templates || [])
+app.put('/api/templates/:id', requireEditor, (req, res) => {
+  const item = req.body?.item
+  if (!item || item.id == null) return res.status(400).json({ error: 'Нет элемента' })
+  if (String(item.id) !== req.params.id) return res.status(400).json({ error: 'id не совпадает' })
+  upsertItem('templates', item)
+  res.json({ ok: true })
+})
+app.delete('/api/templates/:id', requireEditor, (req, res) => {
+  deleteItem('templates', req.params.id)
+  res.json({ ok: true })
+})
+app.put('/api/active-template', requireEditor, (req, res) => {
   setSetting('activeTemplateId', req.body?.activeTemplateId ?? null)
   res.json({ ok: true })
 })
