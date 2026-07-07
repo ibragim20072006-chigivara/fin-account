@@ -26,6 +26,9 @@ cd ../server && npm install && npm start
 Открыть http://localhost:3001. Первый, кто зарегистрируется, становится администратором;
 остальных заводит он в «Настройках». Данные лежат в `server/data.db`.
 
+Для разработки фронта с hot-reload: `cd web && npm run dev` (Vite проксирует `/api` на
+бэкенд) — при этом сервер должен быть запущен параллельно (`cd server && npm start`).
+
 Развёртывание на сервер с доступом из интернета — см. [DEPLOY.md](DEPLOY.md).
 
 Выгрузка в .xlsx через Python (вход — `data/documents.json`):
