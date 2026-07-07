@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { X } from 'lucide-react'
 import { useApp } from '../state.jsx'
 import { parseNumber } from '../import.js'
 import { money } from '../format.js'
@@ -7,7 +8,7 @@ import CategoryForm from './CategoryForm.jsx'
 const emptyLine = () => ({ name: '', qty: '', price: '', categoryId: '' })
 
 export default function NewDocument({ onClose }) {
-  const { addDocument, categories } = useApp()
+  const { addDocument, categories, removeCategory } = useApp()
   const [title, setTitle] = useState('')
   const [date, setDate] = useState(() => new Date().toLocaleDateString('ru-RU'))
   const [lines, setLines] = useState([emptyLine()])
@@ -19,6 +20,13 @@ export default function NewDocument({ onClose }) {
   const setLine = (i, patch) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)))
   const addLine = () => setLines((ls) => [...ls, emptyLine()])
   const removeLine = (i) => setLines((ls) => (ls.length > 1 ? ls.filter((_, j) => j !== i) : ls))
+
+  // Удалить выбранную в строке категорию (из системы) и сбросить её в позициях, где она стояла.
+  const delCategory = (id) => {
+    if (!id) return
+    removeCategory(id)
+    setLines((ls) => ls.map((l) => (l.categoryId === id ? { ...l, categoryId: '' } : l)))
+  }
 
   const rows = lines.map((l) => {
     const qtyValue = parseNumber(l.qty)
@@ -86,19 +94,24 @@ export default function NewDocument({ onClose }) {
                 <input className="nd-input" value={r.name} placeholder="Позиция" onChange={(e) => setLine(i, { name: e.target.value })} />
                 <input className="nd-input" value={r.qty} placeholder="1" onChange={(e) => setLine(i, { qty: e.target.value })} />
                 <input className="nd-input" value={r.price} placeholder="0" inputMode="numeric" onChange={(e) => setLine(i, { price: e.target.value })} />
-                <select className="role-select nd-select" value={r.categoryId} onChange={(e) => setLine(i, { categoryId: e.target.value })}>
-                  <option value="">— категория —</option>
-                  {income.length > 0 && (
-                    <optgroup label="Приход">
-                      {income.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </optgroup>
-                  )}
-                  {expense.length > 0 && (
-                    <optgroup label="Расход">
-                      {expense.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </optgroup>
-                  )}
-                </select>
+                <div className="nd-cat-cell">
+                  <select className="role-select nd-select" style={{ flex: 1, minWidth: 0 }} value={r.categoryId} onChange={(e) => setLine(i, { categoryId: e.target.value })}>
+                    <option value="">— категория —</option>
+                    {income.length > 0 && (
+                      <optgroup label="Приход">
+                        {income.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </optgroup>
+                    )}
+                    {expense.length > 0 && (
+                      <optgroup label="Расход">
+                        {expense.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </optgroup>
+                    )}
+                  </select>
+                  <button className="line-act" title="Удалить выбранную категорию" disabled={!r.categoryId} onClick={() => delCategory(r.categoryId)}>
+                    <X size={13} strokeWidth={2} />
+                  </button>
+                </div>
                 <div className="nd-sum mono">{r.sum != null ? money(r.sum) : '—'}</div>
                 <button className="nd-remove" onClick={() => removeLine(i)} title="Удалить" disabled={lines.length === 1}>✕</button>
               </div>

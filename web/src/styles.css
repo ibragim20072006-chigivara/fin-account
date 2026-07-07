@@ -313,18 +313,15 @@ input { font-family: inherit; }
 .line-actions { display: flex; gap: 2px; justify-content: flex-end; padding-left: 6px; }
 .line-act {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 24px; height: 24px; border-radius: 6px; color: var(--text-4);
+  width: 24px; height: 24px; border-radius: 6px; color: var(--text-4); flex: none;
 }
-.line-act:hover { background: var(--thead-bg); color: var(--text); }
+.line-act:hover:not(:disabled) { background: var(--thead-bg); color: var(--text); }
+.line-act:disabled { opacity: .3; cursor: default; }
 .line-editor {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   padding: 10px 16px 12px; background: var(--thead-bg); border-bottom: 1px solid var(--divider);
 }
-.cat-del {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 24px; height: 24px; border-radius: 6px; color: var(--text-4); margin-left: 2px;
-}
-.cat-del:hover { background: var(--danger-bg); color: var(--danger); }
+.nd-cat-cell { display: flex; align-items: center; gap: 4px; min-width: 0; }
 .nd-hint { font-size: 12px; line-height: 1.4; color: var(--text-3); margin: 2px 0 2px; }
 
 .line-flagged { background: var(--danger-row); }
