@@ -12,6 +12,7 @@ export const EXPORT_COLUMNS = [
   { key: 'date', label: 'Дата', source: 'дата документа' },
   { key: 'counterparty', label: 'Контрагент', source: 'контрагент по справочнику' },
   { key: 'category', label: 'Номенклатура', source: 'категория строки' },
+  { key: 'kind', label: 'Тип', source: 'приход/расход категории' },
   { key: 'qty', label: 'Кол-во', source: 'количество из документа' },
   { key: 'price', label: 'Цена', source: 'цена за единицу' },
   { key: 'sum', label: 'Сумма', source: 'кол-во × цена' },

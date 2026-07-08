@@ -41,6 +41,7 @@ const EXPORT_COLUMNS = [
   { key: 'date', label: 'Дата' },
   { key: 'counterparty', label: 'Контрагент' },
   { key: 'category', label: 'Номенклатура' },
+  { key: 'kind', label: 'Тип' },
   { key: 'qty', label: 'Кол-во' },
   { key: 'price', label: 'Цена' },
   { key: 'sum', label: 'Сумма' },

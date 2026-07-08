@@ -12,6 +12,7 @@ export function buildExportRows(documents, catOf = () => null) {
         date: doc.date ?? '',
         counterparty: doc.counterparty ?? '',
         category: cat?.name ?? line.category ?? '',
+        kind: cat ? (cat.kind === 'income' ? 'Приход' : 'Расход') : '',
         qty: line.qtyValue ?? line.qty ?? '',
         price: line.price ?? '',
         sum: line.sum ?? '',

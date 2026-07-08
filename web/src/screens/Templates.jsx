@@ -4,7 +4,7 @@ import { EXPORT_COLUMNS } from '../data.js'
 
 const SAMPLE = {
   date: '14.06.2026', counterparty: 'СтройБаза Юг', category: 'Щебень 5–20',
-  qty: '26,4', price: '850', sum: '22 440',
+  kind: 'Приход', qty: '26,4', price: '850', sum: '22 440',
 }
 
 function ColumnEditor({ columns, onChange }) {
