@@ -44,7 +44,6 @@ const EXPORT_COLUMNS = [
   { key: 'qty', label: 'Кол-во' },
   { key: 'price', label: 'Цена' },
   { key: 'sum', label: 'Сумма' },
-  { key: 'account', label: 'Счёт учёта' },
 ]
 
 if (db.prepare('SELECT COUNT(*) AS n FROM templates').get().n === 0) {

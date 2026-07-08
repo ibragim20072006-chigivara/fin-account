@@ -1,7 +1,7 @@
 import { EXPORT_COLUMNS } from './data.js'
 
 // Строки выгрузки по отгруженным документам (одна строка на позицию документа).
-// catOf(line) → объект категории (имя/счёт берём из него; фолбэк на старые line.category/account).
+// catOf(line) → объект категории (имя берём из него; фолбэк на старое line.category).
 export function buildExportRows(documents, catOf = () => null) {
   const rows = []
   for (const doc of documents) {
@@ -15,7 +15,6 @@ export function buildExportRows(documents, catOf = () => null) {
         qty: line.qtyValue ?? line.qty ?? '',
         price: line.price ?? '',
         sum: line.sum ?? '',
-        account: cat?.account ?? line.account ?? '',
       })
     }
   }

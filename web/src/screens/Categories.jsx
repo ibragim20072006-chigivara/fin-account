@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useApp } from '../state.jsx'
 import { Segment } from '../components/ui.jsx'
-import { money, rub } from '../format.js'
+import { money } from '../format.js'
 import CategoryForm from './CategoryForm.jsx'
 
 function AiBanner() {
@@ -54,17 +54,6 @@ function CategoryDetail({ cat }) {
         <span className="chip neutral">{cat.kind === 'income' ? 'приход' : 'расход'}</span>
         <div className="spacer" />
         {canEdit && <button className="btn-ghost sm" onClick={() => showToast('Переименование доступно владельцу категории')}>переименовать</button>}
-      </div>
-
-      <div className="field-row">
-        <div className="field">
-          <div className="section-label">СЧЁТ УЧЁТА</div>
-          <div className="field-value">{cat.account}</div>
-        </div>
-        <div className="field">
-          <div className="section-label">ЗА ИЮНЬ</div>
-          <div className="field-value">{cat.linesMonth} строк · {rub(cat.sumMonth)}</div>
-        </div>
       </div>
 
       <div className="field">
@@ -139,7 +128,6 @@ export default function Categories() {
       onClick={() => setSelectedCategoryId(c.id)}
     >
       <div className="cat-row-name">{c.name}</div>
-      <div className="cat-row-meta">{c.account} · {c.linesMonth ?? 0} стр.</div>
     </button>
   )
 

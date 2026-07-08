@@ -4,7 +4,7 @@ import { EXPORT_COLUMNS } from '../data.js'
 
 const SAMPLE = {
   date: '14.06.2026', counterparty: 'СтройБаза Юг', category: 'Щебень 5–20',
-  qty: '26,4', price: '850', sum: '22 440', account: '90.01',
+  qty: '26,4', price: '850', sum: '22 440',
 }
 
 function ColumnEditor({ columns, onChange }) {
@@ -62,11 +62,7 @@ function ReadonlyMapping({ columns }) {
         return (
           <div className="map-row" key={i}>
             <div className="map-col">{String.fromCharCode(65 + i)} · {c.label}</div>
-            <div className="map-src">
-              {c.key === 'account'
-                ? <>счёт категории (<a href="#категории">настроен в категориях</a>)</>
-                : field?.source ?? '—'}
-            </div>
+            <div className="map-src">{field?.source ?? '—'}</div>
           </div>
         )
       })}

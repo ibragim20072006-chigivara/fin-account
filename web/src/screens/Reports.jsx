@@ -34,7 +34,7 @@ export function Legend({ items, twoCol, onSelect }) {
   )
 }
 
-function DrillModal({ article, account, onClose }) {
+function DrillModal({ article, onClose }) {
   const { openDocInQueue, showToast } = useApp()
   const docs = article.docs ?? []
 
@@ -50,7 +50,7 @@ function DrillModal({ article, account, onClose }) {
         <div className="modal-head">
           <div>
             <div className="modal-title">{article.name}</div>
-            <div className="modal-sub">{docs.length} документов · счёт {account}</div>
+            <div className="modal-sub">{docs.length} документов</div>
           </div>
           <div className="spacer" />
           <div className="modal-sum">{rub(article.sum)}</div>
@@ -201,7 +201,6 @@ export default function Reports() {
       {drill && (
         <DrillModal
           article={drill}
-          account={drill.account || '—'}
           onClose={() => setDrill(null)}
         />
       )}

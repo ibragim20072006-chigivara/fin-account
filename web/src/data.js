@@ -7,15 +7,14 @@ export const initialCategories = []
 
 export const aiSuggestion = null
 
-// Колонки выгрузки в учёт — схема CSV и маппинг шаблона «шаблон_учёт».
+// Колонки выгрузки — схема CSV и маппинг шаблона «шаблон_учёт».
 export const EXPORT_COLUMNS = [
   { key: 'date', label: 'Дата', source: 'дата документа' },
   { key: 'counterparty', label: 'Контрагент', source: 'контрагент по справочнику' },
   { key: 'category', label: 'Номенклатура', source: 'категория строки' },
   { key: 'qty', label: 'Кол-во', source: 'количество из документа' },
-  { key: 'price', label: 'Цена', source: 'цена без НДС' },
+  { key: 'price', label: 'Цена', source: 'цена за единицу' },
   { key: 'sum', label: 'Сумма', source: 'кол-во × цена' },
-  { key: 'account', label: 'Счёт учёта', source: 'счёт категории (настроен в категориях)' },
 ]
 
 export const initialTemplates = [

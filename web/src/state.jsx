@@ -1,9 +1,15 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { initialTemplates, aiSuggestion, ROLES } from './data.js'
+import { initialTemplates, aiSuggestion, ROLES, EXPORT_COLUMNS } from './data.js'
 import { api, newId, setUnauthorizedHandler } from './api.js'
 import { parseNumber } from './import.js'
 
 const REFRESH_MS = 25000 // периодический рефетч: видеть чужие правки, обновлять роль/сессию
+
+// Отбрасываем колонки шаблонов с полями, которых больше нет в каталоге (напр. старый «Счёт учёта»).
+const VALID_COLS = new Set(EXPORT_COLUMNS.map((c) => c.key))
+const sanitizeTemplates = (tpls) => tpls.map((t) => ({
+  ...t, columns: (t.columns ?? []).filter((c) => VALID_COLS.has(c.key)),
+}))
 
 const AppContext = createContext(null)
 
@@ -58,13 +64,13 @@ function docsForCategory(shipped, catId, catOf) {
 }
 
 function groupByKind(shipped, catOf, kind) {
-  const acc = new Map() // id -> { id, name, account, sum }
+  const acc = new Map() // id -> { id, name, sum }
   for (const doc of shipped) {
     for (const l of doc.lines) {
       if (l.sum == null) continue
       const cat = catOf(l)
       if (!cat || cat.kind !== kind) continue
-      const cur = acc.get(cat.id) ?? { id: cat.id, name: cat.name, account: cat.account ?? '', sum: 0 }
+      const cur = acc.get(cat.id) ?? { id: cat.id, name: cat.name, sum: 0 }
       cur.sum += l.sum
       acc.set(cat.id, cur)
     }
@@ -142,7 +148,7 @@ export function AppProvider({ children }) {
     const [docs, cats, tpls] = await Promise.all([api.getDocuments(), api.getCategories(), api.getTemplates()])
     setDocuments(docs)
     setCategories(cats)
-    setTemplates(tpls.templates.length ? tpls.templates : initialTemplates)
+    setTemplates(tpls.templates.length ? sanitizeTemplates(tpls.templates) : initialTemplates)
     setActiveTemplateId(tpls.activeTemplateId)
   }
 
@@ -155,7 +161,7 @@ export function AppProvider({ children }) {
     if (kind === 'documents') return api.getDocuments().then(setDocuments).catch(() => {})
     if (kind === 'categories') return api.getCategories().then(setCategories).catch(() => {})
     return api.getTemplates().then((t) => {
-      setTemplates(t.templates.length ? t.templates : initialTemplates)
+      setTemplates(t.templates.length ? sanitizeTemplates(t.templates) : initialTemplates)
       setActiveTemplateId(t.activeTemplateId)
     }).catch(() => {})
   }
@@ -358,10 +364,10 @@ export function AppProvider({ children }) {
   }
 
   // ===== Категории =====
-  const addCategory = ({ name, kind, account }) => {
+  const addCategory = ({ name, kind }) => {
     const cat = {
       id: newId('cat'), kind: kind === 'income' ? 'income' : 'expense',
-      name: name.trim(), account: (account ?? '').trim(),
+      name: name.trim(),
       keywords: [], threshold: 90, matches: [], linesMonth: 0, sumMonth: 0,
     }
     setCategories((cats) => [...cats, cat])
@@ -396,7 +402,7 @@ export function AppProvider({ children }) {
   const createSuggestedCategory = () => {
     if (!suggestion) return
     const cat = {
-      id: newId('cat'), kind: 'expense', name: suggestion.name, account: '60.01',
+      id: newId('cat'), kind: 'expense', name: suggestion.name,
       linesMonth: suggestion.lines.length,
       sumMonth: suggestion.lines.reduce((s, l) => s + l.sum, 0),
       keywords: [], threshold: 90,
