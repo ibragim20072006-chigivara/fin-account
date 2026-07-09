@@ -1,37 +1,25 @@
 import { useState } from 'react'
 import { useApp } from '../state.jsx'
 import { Segment } from '../components/ui.jsx'
-import { money } from '../format.js'
 import CategoryForm from './CategoryForm.jsx'
 
+// Категории, предложенные ИИ при распознавании фото. Создать одной кнопкой (тип подставлен, можно сменить).
 function AiBanner() {
-  const { suggestion, setSuggestion, createSuggestedCategory, canEdit } = useApp()
-  const [showLines, setShowLines] = useState(false)
-  if (!suggestion || !canEdit) return null
+  const { suggestions, createSuggestion, dismissSuggestion, canEdit } = useApp()
+  if (!canEdit || !suggestions.length) return null
   return (
-    <div className="ai-banner">
-      <div className="ai-banner-text">
-        <b>ИИ предлагает категорию «{suggestion.name}»</b> — {suggestion.reason}
-      </div>
-      <div className="spacer" />
-      <button className="btn-primary sm" onClick={createSuggestedCategory}>создать</button>
-      <button className="link" style={{ fontSize: '12.5px' }} onClick={() => setShowLines((v) => !v)}>
-        {showLines ? 'скрыть строки' : 'показать строки'}
-      </button>
-      <button className="team-link" style={{ fontSize: '12.5px' }} onClick={() => setSuggestion(null)}>скрыть</button>
-      {showLines && (
-        <div className="ai-banner-lines">
-          {suggestion.lines.map((l, i) => (
-            <div key={i} className="ai-banner-line">
-              <span>{l.text}</span>
-              <span className="mono">{l.doc}</span>
-              <span className="spacer" />
-              <span className="mono">{money(l.sum)}</span>
-            </div>
-          ))}
+    <>
+      {suggestions.map((s) => (
+        <div className="ai-banner" key={s.name}>
+          <div className="ai-banner-text">
+            <b>ИИ предлагает категорию «{s.name}»</b> — определил как «{s.kind === 'income' ? 'приход' : 'расход'}»
+          </div>
+          <div className="spacer" />
+          <button className="btn-primary sm" onClick={() => createSuggestion(s)}>создать</button>
+          <button className="team-link" style={{ fontSize: '12.5px' }} onClick={() => dismissSuggestion(s)}>скрыть</button>
         </div>
-      )}
-    </div>
+      ))}
+    </>
   )
 }
 
