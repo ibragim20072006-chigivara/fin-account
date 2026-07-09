@@ -3,14 +3,17 @@ import { Pencil, X } from 'lucide-react'
 import { useApp, docStatus, docTotal } from '../state.jsx'
 import { StatusChip, DocCard, plural } from '../components/ui.jsx'
 import { parseCsv, rowsToDocuments, parseNumber } from '../import.js'
+import { fileToDataUrl } from '../image.js'
 import NewDocument from './NewDocument.jsx'
 import { money } from '../format.js'
 
 export function QueueList({ mobile = false }) {
-  const { documents, selectedDocId, setSelectedDocId, shipReady, showToast, canEdit, addDocuments, currentUser, categories } = useApp()
+  const { documents, selectedDocId, setSelectedDocId, shipReady, showToast, canEdit, addDocuments, recognizeAndAdd, currentUser, categories } = useApp()
   const [filter, setFilter] = useState('all')
   const [showNew, setShowNew] = useState(false)
+  const [recognizing, setRecognizing] = useState(false)
   const fileRef = useRef(null)
+  const photoRef = useRef(null)
 
   const handleFile = async (e) => {
     const file = e.target.files?.[0]
@@ -22,10 +25,28 @@ export function QueueList({ mobile = false }) {
     showToast(n ? `Импортировано документов: ${n}` : 'В файле не распознаны строки (ожидается CSV выгрузки)')
   }
 
+  const handlePhoto = async (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setRecognizing(true)
+    try {
+      await recognizeAndAdd(await fileToDataUrl(file))
+    } catch (err) {
+      showToast(err.message || 'Не удалось распознать документ')
+    } finally {
+      setRecognizing(false)
+    }
+  }
+
   const addControls = canEdit && (
     <>
+      <button className={mobile ? 'mq-add' : 'queue-add'} onClick={() => photoRef.current?.click()} disabled={recognizing}>
+        {recognizing ? 'распознаю…' : 'сфотографировать'}
+      </button>
       <button className={mobile ? 'mq-add' : 'queue-add'} onClick={() => setShowNew(true)}>+ документ</button>
       <button className={mobile ? 'mq-add' : 'queue-add'} onClick={() => fileRef.current?.click()}>из файла</button>
+      <input ref={photoRef} type="file" accept="image/*" hidden onChange={handlePhoto} />
       <input ref={fileRef} type="file" accept=".csv,text/csv" hidden onChange={handleFile} />
     </>
   )

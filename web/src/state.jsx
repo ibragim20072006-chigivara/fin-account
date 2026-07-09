@@ -109,6 +109,7 @@ export function AppProvider({ children }) {
   const [categories, setCategories] = useState([])
   const [selectedCategoryId, setSelectedCategoryId] = useState(null)
   const [suggestion, setSuggestion] = useState(aiSuggestion)
+  const [suggestions, setSuggestions] = useState([]) // предложения категорий от распознавания
   const [toast, setToast] = useState(null)
 
   const [currentUser, setCurrentUser] = useState(null)
@@ -160,6 +161,7 @@ export function AppProvider({ children }) {
     setUsers([])
     setDocuments([])
     setCategories([])
+    setSuggestions([])
     setSelectedDocId(null)
     setSelectedCategoryId(null)
   }
@@ -347,6 +349,21 @@ export function AppProvider({ children }) {
     return docs.length
   }
 
+  // Распознать фото (GigaChat) и добавить документ как «+ документ». Бросает при ошибке.
+  const recognizeAndAdd = async (image) => {
+    const draft = await api.recognize(image)
+    const id = addDocument({ type: draft.type, counterparty: draft.counterparty, date: draft.date, lines: draft.lines })
+    const known = new Set(categories.map((c) => c.name.toLowerCase()))
+    const fresh = (draft.suggestedCategories ?? []).filter((s) => s?.name && !known.has(String(s.name).toLowerCase()))
+    if (fresh.length) {
+      setSuggestions((prev) => {
+        const seen = new Set(prev.map((s) => s.name.toLowerCase()))
+        return [...prev, ...fresh.filter((s) => !seen.has(s.name.toLowerCase()))]
+      })
+    }
+    return id
+  }
+
   // ===== Категории =====
   const addCategory = ({ name, kind }) => {
     const cat = {
@@ -366,6 +383,14 @@ export function AppProvider({ children }) {
     if (id === selectedCategoryId) setSelectedCategoryId(null)
     api.deleteCategory(id).catch((e) => { showToast(e.message); refetch('categories') })
   }
+
+  // Создать категорию из ИИ-предложения / скрыть предложение.
+  const createSuggestion = (s) => {
+    const id = addCategory({ name: s.name, kind: s.kind })
+    setSuggestions((prev) => prev.filter((x) => x.name.toLowerCase() !== s.name.toLowerCase()))
+    return id
+  }
+  const dismissSuggestion = (s) => setSuggestions((prev) => prev.filter((x) => x.name.toLowerCase() !== s.name.toLowerCase()))
 
   const addKeyword = (categoryId, word) => {
     const cat = categories.find((c) => c.id === categoryId)
@@ -404,16 +429,16 @@ export function AppProvider({ children }) {
     screen, setScreen,
     documents, selectedDocId, setSelectedDocId,
     categories, selectedCategoryId, setSelectedCategoryId,
-    suggestion, setSuggestion,
+    suggestion, setSuggestion, suggestions, createSuggestion, dismissSuggestion,
     currentUser, role, canEdit, isAdmin,
     users, loadUsers, register, login: loginUser, logout, addUser, setUserRole, removeUser,
     resolveLine, shipDoc, shipReady, openDocInQueue,
-    addDocument, addDocuments, updateLine, removeLine, removeDocument,
+    addDocument, addDocuments, recognizeAndAdd, updateLine, removeLine, removeDocument,
     addCategory, removeCategory, addKeyword, setThreshold, createSuggestedCategory,
     getCategory, categoryOfLine,
     toast, showToast,
   }), [loading, screen, documents, selectedDocId, categories, selectedCategoryId,
-    suggestion, currentUser, users, toast])
+    suggestion, suggestions, currentUser, users, toast])
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }

@@ -50,6 +50,8 @@ export const api = {
   getCategories: () => req('/categories').then((r) => r.categories),
   saveCategory: (cat) => req(`/categories/${cat.id}`, { method: 'PUT', body: { item: cat } }),
   deleteCategory: (id) => req(`/categories/${id}`, { method: 'DELETE' }),
+
+  recognize: (image) => req('/recognize', { method: 'POST', body: { image } }).then((r) => r.draft),
 }
 
 export function initials(name) {
