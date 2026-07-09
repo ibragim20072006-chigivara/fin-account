@@ -1,15 +1,9 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { initialTemplates, aiSuggestion, ROLES, EXPORT_COLUMNS } from './data.js'
+import { aiSuggestion, ROLES } from './data.js'
 import { api, newId, setUnauthorizedHandler } from './api.js'
 import { parseNumber } from './import.js'
 
 const REFRESH_MS = 25000 // периодический рефетч: видеть чужие правки, обновлять роль/сессию
-
-// Отбрасываем колонки шаблонов с полями, которых больше нет в каталоге (напр. старый «Счёт учёта»).
-const VALID_COLS = new Set(EXPORT_COLUMNS.map((c) => c.key))
-const sanitizeTemplates = (tpls) => tpls.map((t) => ({
-  ...t, columns: (t.columns ?? []).filter((c) => VALID_COLS.has(c.key)),
-}))
 
 const AppContext = createContext(null)
 
@@ -114,8 +108,6 @@ export function AppProvider({ children }) {
   const [selectedDocId, setSelectedDocId] = useState(null)
   const [categories, setCategories] = useState([])
   const [selectedCategoryId, setSelectedCategoryId] = useState(null)
-  const [templates, setTemplates] = useState(initialTemplates)
-  const [activeTemplateId, setActiveTemplateId] = useState(null)
   const [suggestion, setSuggestion] = useState(aiSuggestion)
   const [toast, setToast] = useState(null)
 
@@ -124,7 +116,7 @@ export function AppProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   const toastTimer = useRef(null)
-  const saveTimers = useRef({}) // дебаунс частых текстовых правок (лейблы колонок)
+  const saveTimers = useRef({})
   const sessionEpoch = useRef(0) // растёт при logout/401 — отложенные операции сверяются и не применяются
 
   const role = currentUser ? ROLES[currentUser.role] ?? ROLES.viewer : null
@@ -145,11 +137,9 @@ export function AppProvider({ children }) {
 
   // ===== Загрузка/рефетч данных =====
   const loadWorkspace = async () => {
-    const [docs, cats, tpls] = await Promise.all([api.getDocuments(), api.getCategories(), api.getTemplates()])
+    const [docs, cats] = await Promise.all([api.getDocuments(), api.getCategories()])
     setDocuments(docs)
     setCategories(cats)
-    setTemplates(tpls.templates.length ? sanitizeTemplates(tpls.templates) : initialTemplates)
-    setActiveTemplateId(tpls.activeTemplateId)
   }
 
   // Оптимистичный локальный апдейт уже сделан; фоново пишем на сервер, при ошибке — тост + рефетч (откат).
@@ -158,12 +148,8 @@ export function AppProvider({ children }) {
   const removeDocRemote = (id) => api.deleteDocument(id).catch((e) => { showToast(e.message); refetch('documents') })
 
   const refetch = (kind) => {
-    if (kind === 'documents') return api.getDocuments().then(setDocuments).catch(() => {})
     if (kind === 'categories') return api.getCategories().then(setCategories).catch(() => {})
-    return api.getTemplates().then((t) => {
-      setTemplates(t.templates.length ? sanitizeTemplates(t.templates) : initialTemplates)
-      setActiveTemplateId(t.activeTemplateId)
-    }).catch(() => {})
+    return api.getDocuments().then(setDocuments).catch(() => {})
   }
 
   const resetSession = () => {
@@ -174,8 +160,6 @@ export function AppProvider({ children }) {
     setUsers([])
     setDocuments([])
     setCategories([])
-    setTemplates(initialTemplates)
-    setActiveTemplateId(null)
     setSelectedDocId(null)
     setSelectedCategoryId(null)
   }
@@ -415,68 +399,12 @@ export function AppProvider({ children }) {
     showToast(`Категория «${cat.name}» создана`)
   }
 
-  // ===== Шаблоны =====
-  const activeTemplate = templates.find((t) => t.id === activeTemplateId)
-    ?? templates.find((t) => t.isDefault) ?? templates[0]
-
-  // Дебаунс на текстовые правки шаблона (лейблы колонок), чтобы не слать запрос на каждое нажатие.
-  const saveTemplateDebounced = (tpl) => {
-    const epoch = sessionEpoch.current
-    window.clearTimeout(saveTimers.current[tpl.id])
-    saveTimers.current[tpl.id] = window.setTimeout(() => {
-      if (epoch !== sessionEpoch.current) return
-      api.saveTemplate(tpl).catch((e) => { showToast(e.message); refetch('templates') })
-    }, 400)
-  }
-
-  const addTemplate = (name) => {
-    const tpl = {
-      id: newId('tpl'),
-      name: (name ?? '').trim() || 'Новый шаблон',
-      isDefault: false,
-      columns: activeTemplate?.columns?.map((c) => ({ ...c })) ?? [],
-    }
-    setTemplates((ts) => [...ts, tpl])
-    api.saveTemplate(tpl).catch((e) => { showToast(e.message); refetch('templates') })
-    return tpl.id
-  }
-  const renameTemplate = (id, name) => {
-    const trimmed = (name ?? '').trim()
-    const tpl = templates.find((t) => t.id === id)
-    if (!trimmed || !tpl) return
-    const updated = { ...tpl, name: trimmed }
-    setTemplates((ts) => ts.map((t) => (t.id === id ? updated : t)))
-    api.saveTemplate(updated).catch((e) => { showToast(e.message); refetch('templates') })
-  }
-  const updateTemplateColumns = (id, columns) => {
-    if (!columns.length) return
-    const tpl = templates.find((t) => t.id === id)
-    if (!tpl) return
-    const updated = { ...tpl, columns }
-    setTemplates((ts) => ts.map((t) => (t.id === id ? updated : t)))
-    saveTemplateDebounced(updated)
-  }
-  const removeTemplate = (id) => {
-    if (templates.length <= 1) return
-    setTemplates((ts) => ts.filter((t) => t.id !== id))
-    api.deleteTemplate(id).catch((e) => { showToast(e.message); refetch('templates') })
-    if (id === activeTemplateId) {
-      setActiveTemplateId(null)
-      api.setActiveTemplate(null).catch(() => {})
-    }
-  }
-  const setActiveTemplate = (id) => {
-    setActiveTemplateId(id)
-    api.setActiveTemplate(id).catch((e) => { showToast(e.message); refetch('templates') })
-  }
-
   const value = useMemo(() => ({
     loading,
     screen, setScreen,
     documents, selectedDocId, setSelectedDocId,
     categories, selectedCategoryId, setSelectedCategoryId,
-    templates, activeTemplate, suggestion, setSuggestion,
-    addTemplate, renameTemplate, updateTemplateColumns, removeTemplate, setActiveTemplate,
+    suggestion, setSuggestion,
     currentUser, role, canEdit, isAdmin,
     users, loadUsers, register, login: loginUser, logout, addUser, setUserRole, removeUser,
     resolveLine, shipDoc, shipReady, openDocInQueue,
@@ -485,7 +413,7 @@ export function AppProvider({ children }) {
     getCategory, categoryOfLine,
     toast, showToast,
   }), [loading, screen, documents, selectedDocId, categories, selectedCategoryId,
-    templates, activeTemplateId, suggestion, currentUser, users, toast])
+    suggestion, currentUser, users, toast])
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }

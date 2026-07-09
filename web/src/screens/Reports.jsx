@@ -166,14 +166,14 @@ function DdsView({ data, onDrill }) {
 }
 
 export default function Reports() {
-  const { documents, categories, activeTemplate, showToast } = useApp()
+  const { documents, categories, showToast } = useApp()
   const [tab, setTab] = useState('opu')
   const [drill, setDrill] = useState(null)
 
   const report = useMemo(() => computeReports(documents, categories), [documents, categories])
 
   const download = () => {
-    const rows = downloadShipmentCsv(documents, activeTemplate, categories)
+    const rows = downloadShipmentCsv(documents, categories)
     showToast(rows ? `Скачано строк: ${rows}` : 'Нет отгруженных документов для выгрузки')
   }
 

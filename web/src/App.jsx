@@ -5,7 +5,6 @@ import Sidebar from './components/Sidebar.jsx'
 import Queue, { QueueList } from './screens/Queue.jsx'
 import Reports from './screens/Reports.jsx'
 import Categories from './screens/Categories.jsx'
-import Templates from './screens/Templates.jsx'
 import Settings from './screens/Settings.jsx'
 import Guide from './screens/Guide.jsx'
 import Register from './screens/Register.jsx'
@@ -16,7 +15,6 @@ const SCREENS = {
   queue: Queue,
   reports: Reports,
   categories: Categories,
-  templates: Templates,
   settings: Settings,
   guide: Guide,
 }

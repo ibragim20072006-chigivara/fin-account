@@ -7,24 +7,15 @@ export const initialCategories = []
 
 export const aiSuggestion = null
 
-// Колонки выгрузки — схема CSV и маппинг шаблона «шаблон_учёт».
+// Фиксированный формат CSV-отчёта — столбцы строятся из введённых данных, без настройки.
 export const EXPORT_COLUMNS = [
-  { key: 'date', label: 'Дата', source: 'дата документа' },
-  { key: 'counterparty', label: 'Контрагент', source: 'контрагент по справочнику' },
-  { key: 'category', label: 'Номенклатура', source: 'категория строки' },
-  { key: 'kind', label: 'Тип', source: 'приход/расход категории' },
-  { key: 'qty', label: 'Кол-во', source: 'количество из документа' },
-  { key: 'price', label: 'Цена', source: 'цена за единицу' },
-  { key: 'sum', label: 'Сумма', source: 'кол-во × цена' },
-]
-
-export const initialTemplates = [
-  {
-    id: 'main',
-    name: 'шаблон_учёт',
-    isDefault: true,
-    columns: EXPORT_COLUMNS.map((c) => ({ key: c.key, label: c.label })),
-  },
+  { key: 'date', label: 'Дата' },
+  { key: 'counterparty', label: 'Контрагент' },
+  { key: 'category', label: 'Категория' },
+  { key: 'kind', label: 'Тип' },
+  { key: 'qty', label: 'Кол-во' },
+  { key: 'price', label: 'Цена' },
+  { key: 'sum', label: 'Сумма' },
 ]
 
 // Роли пользователей. canEdit — правка данных; isAdmin — управление пользователями/настройками.

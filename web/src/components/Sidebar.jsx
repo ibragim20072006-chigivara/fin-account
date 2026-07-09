@@ -6,7 +6,6 @@ const NAV = [
   { id: 'queue', label: 'Очередь' },
   { id: 'reports', label: 'Отчёты' },
   { id: 'categories', label: 'Категории' },
-  { id: 'templates', label: 'Шаблоны' },
   { id: 'settings', label: 'Настройки' },
   { id: 'guide', label: 'Руководство' },
 ]

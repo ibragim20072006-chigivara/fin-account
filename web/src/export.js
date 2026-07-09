@@ -33,17 +33,16 @@ export function toCsv(rows, columns = EXPORT_COLUMNS) {
   return [header, ...body].map((cols) => cols.join(';')).join('\r\n')
 }
 
-// Скачивает CSV из отгруженных документов по колонкам активного шаблона.
+// Скачивает CSV-отчёт из отгруженных документов (фиксированный набор колонок).
 // Возвращает число строк (0 — скачивать нечего).
-export function downloadShipmentCsv(documents, template, categories = [], filename = 'выгрузка.csv') {
+export function downloadShipmentCsv(documents, categories = [], filename = 'отчёт.csv') {
   const byId = new Map(categories.map((c) => [c.id, c]))
   const byName = new Map(categories.map((c) => [c.name, c]))
   const catOf = (l) => (l.categoryId && byId.get(l.categoryId)) || (l.category && byName.get(l.category)) || null
   const rows = buildExportRows(documents, catOf)
   if (!rows.length) return 0
 
-  const columns = template?.columns ?? EXPORT_COLUMNS
-  const blob = new Blob(['﻿' + toCsv(rows, columns)], { type: 'text/csv;charset=utf-8;' })
+  const blob = new Blob(['﻿' + toCsv(rows, EXPORT_COLUMNS)], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url

@@ -6,11 +6,11 @@ import { initials } from '../api.js'
 import { downloadShipmentCsv } from '../export.js'
 
 function ExportCard() {
-  const { documents, activeTemplate, categories, showToast } = useApp()
+  const { documents, categories, showToast } = useApp()
   const shippedCount = documents.filter((d) => d.status === 'shipped').length
 
   const download = () => {
-    const rows = downloadShipmentCsv(documents, activeTemplate, categories)
+    const rows = downloadShipmentCsv(documents, categories)
     showToast(rows ? `Скачано строк: ${rows}` : 'Нет отгруженных документов для выгрузки')
   }
 
@@ -19,13 +19,13 @@ function ExportCard() {
       <div className="settings-card-title">Выгрузка</div>
       <div className="settings-row">
         <div className="settings-row-label">Формат</div>
-        <div className="settings-value">CSV · шаблон «{activeTemplate.name}»</div>
+        <div className="settings-value">CSV-отчёт</div>
       </div>
       <div className="settings-row">
         <div className="settings-row-label">Отгружено документов</div>
         <div className="settings-value">{shippedCount}</div>
         <div className="spacer" />
-        <button className="btn-primary sm" onClick={download}>Скачать .csv</button>
+        <button className="btn-primary sm" onClick={download}>Скачать отчёт (.csv)</button>
       </div>
     </div>
   )

@@ -50,11 +50,6 @@ export const api = {
   getCategories: () => req('/categories').then((r) => r.categories),
   saveCategory: (cat) => req(`/categories/${cat.id}`, { method: 'PUT', body: { item: cat } }),
   deleteCategory: (id) => req(`/categories/${id}`, { method: 'DELETE' }),
-
-  getTemplates: () => req('/templates'),
-  saveTemplate: (tpl) => req(`/templates/${tpl.id}`, { method: 'PUT', body: { item: tpl } }),
-  deleteTemplate: (id) => req(`/templates/${id}`, { method: 'DELETE' }),
-  setActiveTemplate: (activeTemplateId) => req('/active-template', { method: 'PUT', body: { activeTemplateId } }),
 }
 
 export function initials(name) {
