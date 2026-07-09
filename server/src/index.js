@@ -7,6 +7,7 @@ import {
   ROLES, hashPassword, verifyPassword, createSession, deleteSession,
   tokenFromReq, requireAuth, requireEditor, requireAdmin,
 } from './auth.js'
+import { recognize, gigachatConfigured } from './gigachat.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 try { process.loadEnvFile(join(here, '..', '.env')) } catch { /* .env необязателен */ }
@@ -14,7 +15,7 @@ try { process.loadEnvFile(join(here, '..', '.env')) } catch { /* .env необя
 const app = express()
 // За cloudflared/Caddy (localhost + X-Forwarded-For) — иначе req.ip у всех был бы адресом прокси.
 app.set('trust proxy', 'loopback')
-app.use(express.json({ limit: '10mb' }))
+app.use(express.json({ limit: '15mb' }))
 
 const adminCount = () => db.prepare("SELECT COUNT(*) AS n FROM users WHERE role = 'admin'").get().n
 
@@ -136,6 +137,19 @@ app.delete('/api/templates/:id', requireEditor, (req, res) => {
 app.put('/api/active-template', requireEditor, (req, res) => {
   setSetting('activeTemplateId', req.body?.activeTemplateId ?? null)
   res.json({ ok: true })
+})
+
+// ===== Распознавание фото документа (GigaChat) =====
+app.post('/api/recognize', requireEditor, async (req, res) => {
+  if (!gigachatConfigured()) return res.status(503).json({ error: 'Распознавание не настроено (нет ключа GigaChat)' })
+  const m = /^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i.exec(req.body?.image || '')
+  if (!m) return res.status(400).json({ error: 'Нужно изображение (data URL base64)' })
+  try {
+    const draft = await recognize(Buffer.from(m[2], 'base64'), m[1], getCollection('categories'))
+    res.json({ draft })
+  } catch (e) {
+    res.status(502).json({ error: `Распознавание не удалось: ${e.message}` })
+  }
 })
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'Неизвестный метод API' }))
