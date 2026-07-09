@@ -5,11 +5,12 @@ import { randomUUID } from 'node:crypto'
 const OAUTH_URL = 'https://ngw.devices.sberbank.ru:9443/api/v2/oauth'
 const BASE = 'https://gigachat.devices.sberbank.ru/api/v1'
 
-const AUTH_KEY = process.env.GIGACHAT_AUTH_KEY || ''
-const SCOPE = process.env.GIGACHAT_SCOPE || 'GIGACHAT_API_PERS'
-const MODEL = process.env.GIGACHAT_MODEL || 'GigaChat-2-Max'
+// env читаем лениво: в index.js loadEnvFile вызывается после импортов.
+const authKey = () => process.env.GIGACHAT_AUTH_KEY || ''
+const scope = () => process.env.GIGACHAT_SCOPE || 'GIGACHAT_API_PERS'
+const model = () => process.env.GIGACHAT_MODEL || 'GigaChat-2-Max'
 
-export const gigachatConfigured = () => !!AUTH_KEY
+export const gigachatConfigured = () => !!authKey()
 
 let cached = { token: null, exp: 0 }
 let inflight = null
@@ -22,12 +23,12 @@ async function getToken() {
     const res = await fetch(OAUTH_URL, {
       method: 'POST',
       headers: {
-        Authorization: `Basic ${AUTH_KEY}`,
+        Authorization: `Basic ${authKey()}`,
         RqUID: randomUUID(),
         'Content-Type': 'application/x-www-form-urlencoded',
         Accept: 'application/json',
       },
-      body: `scope=${encodeURIComponent(SCOPE)}`,
+      body: `scope=${encodeURIComponent(scope())}`,
     })
     if (!res.ok) throw new Error(`OAuth ${res.status}`)
     const data = await res.json()
@@ -55,7 +56,7 @@ async function complete(fileId, prompt, token) {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({
-      model: MODEL,
+      model: model(),
       temperature: 0,
       messages: [{ role: 'user', content: prompt, attachments: [fileId] }],
     }),

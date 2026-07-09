@@ -5,8 +5,6 @@ export const initialDocuments = []
 
 export const initialCategories = []
 
-export const aiSuggestion = null
-
 // Фиксированный формат CSV-отчёта — столбцы строятся из введённых данных, без настройки.
 export const EXPORT_COLUMNS = [
   { key: 'date', label: 'Дата' },

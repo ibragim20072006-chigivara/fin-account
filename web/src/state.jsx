@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { aiSuggestion, ROLES } from './data.js'
+import { ROLES } from './data.js'
 import { api, newId, setUnauthorizedHandler } from './api.js'
 import { parseNumber } from './import.js'
 
@@ -108,7 +108,6 @@ export function AppProvider({ children }) {
   const [selectedDocId, setSelectedDocId] = useState(null)
   const [categories, setCategories] = useState([])
   const [selectedCategoryId, setSelectedCategoryId] = useState(null)
-  const [suggestion, setSuggestion] = useState(aiSuggestion)
   const [suggestions, setSuggestions] = useState([]) // предложения категорий от распознавания
   const [toast, setToast] = useState(null)
 
@@ -408,37 +407,21 @@ export function AppProvider({ children }) {
     persistCat(updated)
   }
 
-  const createSuggestedCategory = () => {
-    if (!suggestion) return
-    const cat = {
-      id: newId('cat'), kind: 'expense', name: suggestion.name,
-      linesMonth: suggestion.lines.length,
-      sumMonth: suggestion.lines.reduce((s, l) => s + l.sum, 0),
-      keywords: [], threshold: 90,
-      matches: suggestion.lines.map((l) => ({ text: l.text, doc: l.doc, pct: 93 })),
-    }
-    setCategories((cats) => [...cats, cat])
-    setSelectedCategoryId(cat.id)
-    setSuggestion(null)
-    persistCat(cat)
-    showToast(`Категория «${cat.name}» создана`)
-  }
-
   const value = useMemo(() => ({
     loading,
     screen, setScreen,
     documents, selectedDocId, setSelectedDocId,
     categories, selectedCategoryId, setSelectedCategoryId,
-    suggestion, setSuggestion, suggestions, createSuggestion, dismissSuggestion,
+    suggestions, createSuggestion, dismissSuggestion,
     currentUser, role, canEdit, isAdmin,
     users, loadUsers, register, login: loginUser, logout, addUser, setUserRole, removeUser,
     resolveLine, shipDoc, shipReady, openDocInQueue,
     addDocument, addDocuments, recognizeAndAdd, updateLine, removeLine, removeDocument,
-    addCategory, removeCategory, addKeyword, setThreshold, createSuggestedCategory,
+    addCategory, removeCategory, addKeyword, setThreshold,
     getCategory, categoryOfLine,
     toast, showToast,
   }), [loading, screen, documents, selectedDocId, categories, selectedCategoryId,
-    suggestion, suggestions, currentUser, users, toast])
+    suggestions, currentUser, users, toast])
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }
