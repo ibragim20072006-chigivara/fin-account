@@ -1,5 +1,6 @@
-// Читает файл изображения, ужимает через canvas и возвращает data URL (JPEG) — меньше трафик и цена.
-export function fileToDataUrl(file, maxSide = 1600, quality = 0.85) {
+// Читает файл изображения, ужимает через canvas и возвращает data URL (JPEG) —
+// меньше трафик/цена распознавания; фото временно хранится в документе до отгрузки.
+export function fileToDataUrl(file, maxSide = 1200, quality = 0.82) {
   return new Promise((resolve, reject) => {
     const img = new Image()
     const url = URL.createObjectURL(file)

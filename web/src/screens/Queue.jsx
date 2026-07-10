@@ -121,9 +121,8 @@ export function QueueList({ mobile = false }) {
       <div className="queue-list-head">
         <div className="queue-list-title">Входящие</div>
         <div className="queue-count">{documents.length}</div>
-        <div className="spacer" />
-        <div className="queue-actions">{addControls}</div>
       </div>
+      {addControls && <div className="queue-actions-row">{addControls}</div>}
       <div className="queue-filters">{filters}</div>
       <div className="queue-scroll">{cards}</div>
       {batch && <div className="queue-batch">{batch}</div>}
@@ -132,34 +131,53 @@ export function QueueList({ mobile = false }) {
   )
 }
 
-function PhotoPane({ doc, flash }) {
+const SOURCE_LABEL = { photo: 'распознано с фото (ИИ)', import: 'импорт из файла', manual: 'добавлено вручную' }
+
+function PhotoPane({ doc }) {
   const [zoom, setZoom] = useState(100)
-  const line = doc.lines.find((l) => l.photoRect)
-  const idx = line ? doc.lines.indexOf(line) + 1 : null
+  const srcLabel = SOURCE_LABEL[doc.source] ?? 'документ'
+
+  const openOriginal = () => {
+    const w = window.open('', '_blank')
+    if (!w) return
+    w.document.body.style.margin = '0'
+    const img = w.document.createElement('img')
+    img.src = doc.photo
+    img.style.maxWidth = '100%'
+    w.document.body.appendChild(img)
+  }
+
+  if (doc.photo) {
+    return (
+      <div className="photo-pane card">
+        <div className="photo-src">{srcLabel}{doc.source === 'photo' ? ' · сверьте строки с фото' : ''}</div>
+        <div className="photo-view">
+          <div className="photo-inner" style={{ transform: `scale(${zoom / 100})` }}>
+            <img className="photo-img" src={doc.photo} alt="документ" />
+          </div>
+        </div>
+        <div className="photo-bar">
+          <div className="zoom">
+            <button onClick={() => setZoom((z) => Math.max(50, z - 25))}>−</button>
+            <div className="zoom-val">{zoom}%</div>
+            <button onClick={() => setZoom((z) => Math.min(300, z + 25))}>+</button>
+          </div>
+          <div className="spacer" />
+          <button className="link" onClick={openOriginal}>открыть оригинал ⤢</button>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="photo-pane card">
-      <div className="photo-view">
-        <div className="photo-inner" style={{ transform: `scale(${zoom / 100})` }}>
-          {line && (
-            <div
-              className={`photo-frame${flash ? ' flash' : ''}`}
-              style={{ left: line.photoRect.left, right: line.photoRect.right, top: line.photoRect.top }}
-            >
-              <span className="photo-frame-tag">строка {idx}</span>
-            </div>
-          )}
-        </div>
-        <div className="photo-label">{doc.photoLabel}</div>
-      </div>
-      <div className="photo-bar">
-        <div className="zoom">
-          <button onClick={() => setZoom((z) => Math.max(50, z - 25))}>−</button>
-          <div className="zoom-val">{zoom}%</div>
-          <button onClick={() => setZoom((z) => Math.min(200, z + 25))}>+</button>
-        </div>
-        <div className="spacer" />
-        <span className="link">открыть оригинал ⤢</span>
-      </div>
+    <div className="photo-pane card info-pane">
+      <div className="info-pane-title">О документе</div>
+      <div className="info-row"><span>Источник</span><b>{srcLabel}</b></div>
+      <div className="info-row"><span>Тип</span><b>{doc.type}</b></div>
+      {doc.counterparty && <div className="info-row"><span>Контрагент</span><b>{doc.counterparty}</b></div>}
+      <div className="info-row"><span>Дата</span><b>{doc.date || '—'}</b></div>
+      <div className="info-row"><span>Добавил</span><b>{doc.uploadedBy || '—'}</b></div>
+      {doc.source === 'photo' && <div className="info-hint">Распознано ИИ — проверьте позиции и категории.</div>}
     </div>
   )
 }
@@ -221,7 +239,7 @@ function EditableLine({ doc, line, resolved, catName }) {
   )
 }
 
-function FlaggedLine({ doc, line, onFlash }) {
+function FlaggedLine({ doc, line }) {
   const { resolveLine, removeLine, canEdit } = useApp()
   const [custom, setCustom] = useState('')
 
@@ -229,13 +247,12 @@ function FlaggedLine({ doc, line, onFlash }) {
     if (Number.isFinite(price) && price > 0) resolveLine(doc.id, line.id, price)
   }
 
-  const fromAi = !!line.flag
   return (
     <div className="line-flagged">
       <div className="lines-grid line-row">
         <div className="line-name">{line.name}</div>
         <div className="line-num">{line.qty}</div>
-        <div className="line-num bad">{line.priceRaw ?? '—'}</div>
+        <div className="line-num empty">—</div>
         <div className="line-num empty">—</div>
         <div className="line-cat"><span className="chip-red">уточнить цену</span></div>
         <div className="line-actions">
@@ -243,10 +260,7 @@ function FlaggedLine({ doc, line, onFlash }) {
         </div>
       </div>
       <div className="line-helper">
-        <div className="line-helper-text">{fromAi ? 'ИИ не уверен в цене — на фото:' : 'Укажите цену позиции:'}</div>
-        {canEdit && fromAi && line.candidates?.map((p) => (
-          <button key={p} className="price-variant" onClick={() => apply(p)}>{p} ₽</button>
-        ))}
+        <div className="line-helper-text">Укажите цену позиции:</div>
         {canEdit && (
           <input
             className="price-input"
@@ -257,7 +271,6 @@ function FlaggedLine({ doc, line, onFlash }) {
             onKeyDown={(e) => { if (e.key === 'Enter') apply(Number(custom)) }}
           />
         )}
-        {fromAi && <button className="link" onClick={onFlash}>показать на фото</button>}
       </div>
     </div>
   )
@@ -265,39 +278,10 @@ function FlaggedLine({ doc, line, onFlash }) {
 
 function VerifyPanel({ doc }) {
   const { shipDoc, removeDocument, canEdit, categoryOfLine } = useApp()
-  const [flash, setFlash] = useState(false)
   const status = docStatus(doc)
   const { total, unknown } = docTotal(doc)
   const flaggedCount = doc.lines.filter((l) => l.sum == null && !l.resolvedAt).length
   const flaggedIdx = doc.lines.findIndex((l) => l.sum == null && !l.resolvedAt) + 1
-
-  const doFlash = () => {
-    setFlash(false)
-    requestAnimationFrame(() => setFlash(true))
-    window.setTimeout(() => setFlash(false), 1100)
-  }
-
-  if (status === 'processing') {
-    return (
-      <div className="verify">
-        <div className="verify-head">
-          <div>
-            <div className="verify-title-row">
-              <div className="verify-title">{doc.title}</div>
-              <StatusChip status="processing" />
-            </div>
-            <div className="verify-sub">{doc.panelSubtitle}</div>
-          </div>
-        </div>
-        <div className="verify-empty card">
-          <div className="verify-empty-inner">
-            <div className="photo-label">{doc.photoLabel}</div>
-            <div>ИИ распознаёт строки документа · ~40 сек</div>
-          </div>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="verify">
@@ -323,7 +307,7 @@ function VerifyPanel({ doc }) {
       </div>
 
       <div className="verify-body">
-        <PhotoPane doc={doc} flash={flash} />
+        <PhotoPane doc={doc} />
 
         <div className="lines-pane card">
           <div className="lines-grid lines-head">
@@ -337,7 +321,7 @@ function VerifyPanel({ doc }) {
           <div className="lines-scroll">
             {doc.lines.map((l) =>
               l.sum == null && !l.resolvedAt
-                ? <FlaggedLine key={l.id} doc={doc} line={l} onFlash={doFlash} />
+                ? <FlaggedLine key={l.id} doc={doc} line={l} />
                 : <EditableLine key={l.id} doc={doc} line={l} resolved={!!l.resolvedAt} catName={categoryOfLine(l)?.name ?? ''} />,
             )}
           </div>

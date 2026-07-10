@@ -251,7 +251,7 @@ export function AppProvider({ children }) {
   const shipDoc = (docId) => {
     const doc = documents.find((d) => d.id === docId)
     if (!doc || docTotal(doc).unknown) return
-    const updated = { ...doc, status: 'shipped' }
+    const updated = { ...doc, status: 'shipped', photo: null } // фото после отгрузки не храним
     setDocuments((docs) => docs.map((d) => (d.id === docId ? updated : d)))
     persistDoc(updated)
     showToast('Документ отгружён в учёт')
@@ -261,8 +261,8 @@ export function AppProvider({ children }) {
     const ready = documents.filter((d) => docStatus(d) === 'ready' && !docTotal(d).unknown)
     if (!ready.length) return 0
     const shippedIds = new Set(ready.map((d) => d.id))
-    setDocuments((docs) => docs.map((d) => (shippedIds.has(d.id) ? { ...d, status: 'shipped' } : d)))
-    ready.forEach((d) => persistDoc({ ...d, status: 'shipped' }))
+    setDocuments((docs) => docs.map((d) => (shippedIds.has(d.id) ? { ...d, status: 'shipped', photo: null } : d)))
+    ready.forEach((d) => persistDoc({ ...d, status: 'shipped', photo: null }))
     showToast('Готовые документы отгружены в учёт')
     return ready.length
   }
@@ -272,7 +272,7 @@ export function AppProvider({ children }) {
     if (docId) setSelectedDocId(docId)
   }
 
-  const addDocument = ({ type = 'накладная', title, counterparty = '', date = '', lines }) => {
+  const addDocument = ({ type = 'накладная', title, counterparty = '', date = '', lines, photo = null, source = 'manual' }) => {
     const at = nowLabel()
     const id = newId('doc')
     const who = currentUser?.name ?? ''
@@ -295,7 +295,8 @@ export function AppProvider({ children }) {
       uploadedBy: who,
       uploadedAt: at,
       status: 'review',
-      photoLabel: 'документ добавлен вручную',
+      source,
+      photo, // временно храним фото до отгрузки (для сверки в панели просмотра)
       lines: cleanLines,
     }
     setDocuments((docs) => [doc, ...docs])
@@ -351,7 +352,7 @@ export function AppProvider({ children }) {
   // Распознать фото (GigaChat) и добавить документ как «+ документ». Бросает при ошибке.
   const recognizeAndAdd = async (image) => {
     const draft = await api.recognize(image)
-    const id = addDocument({ type: draft.type, counterparty: draft.counterparty, date: draft.date, lines: draft.lines })
+    const id = addDocument({ type: draft.type, counterparty: draft.counterparty, date: draft.date, lines: draft.lines, photo: image, source: 'photo' })
     const known = new Set(categories.map((c) => c.name.toLowerCase()))
     const fresh = (draft.suggestedCategories ?? []).filter((s) => s?.name && !known.has(String(s.name).toLowerCase()))
     if (fresh.length) {

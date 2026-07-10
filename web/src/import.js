@@ -96,7 +96,7 @@ export function rowsToDocuments(rows, uploadedBy = '', categories = []) {
       uploadedBy,
       uploadedAt: at,
       status: 'review',
-      photoLabel: 'импортировано из файла',
+      source: 'import',
       lines,
     })
   }
