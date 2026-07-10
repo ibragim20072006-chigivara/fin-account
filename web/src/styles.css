@@ -658,8 +658,8 @@ button.legend-row:hover { background: var(--thead-bg); }
 
 .tabbar { display: flex; background: #fff; border-top: 1px solid var(--border); padding: 8px 0 max(6px, env(safe-area-inset-bottom)); }
 .mobile.dark .tabbar { background: #10151c; border-top-color: #232c37; }
-.tab { flex: 1; display: flex; flex-direction: column; gap: 3px; align-items: center; }
-.tab-label { font-size: 10.5px; font-weight: 500; color: var(--text-3); }
+.tab { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; align-items: center; }
+.tab-label { font-size: 10px; font-weight: 500; letter-spacing: -.01em; white-space: nowrap; color: var(--text-3); }
 .tab svg { color: var(--text-4); }
 .tab.active .tab-label { font-weight: 600; color: var(--primary-hover); }
 .tab.active svg { color: var(--primary); }
@@ -870,4 +870,6 @@ button.legend-row:hover { background: var(--thead-bg); }
   .team-role, .team-rights { width: auto; }
   .settings-row { flex-wrap: wrap; }
   .settings-row-label { width: 100%; }
+  .split { flex-direction: column; }
+  .side-list { flex: none; max-height: 40vh; }
 }

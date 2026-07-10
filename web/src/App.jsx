@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Camera, Inbox, BarChart3, Settings as SettingsIcon, BookOpen } from 'lucide-react'
+import { Camera, Inbox, BarChart3, Settings as SettingsIcon, BookOpen, Tags } from 'lucide-react'
 import { useApp } from './state.jsx'
 import Sidebar from './components/Sidebar.jsx'
 import Queue, { QueueList } from './screens/Queue.jsx'
@@ -44,25 +44,28 @@ function Desktop() {
 }
 
 const CAPTURE_TAB = { id: 'capture', label: 'Съёмка', Icon: Camera }
-const BASE_TABS = [
-  { id: 'queue', label: 'Очередь', Icon: Inbox },
+// Порядок и названия — общие с боковым меню десктопа (Sidebar.jsx).
+const MAIN_TABS = [
   { id: 'reports', label: 'Отчёты', Icon: BarChart3 },
+  { id: 'queue', label: 'Очередь', Icon: Inbox },
+  { id: 'categories', label: 'Категории', Icon: Tags },
+  { id: 'guide', label: 'Руководство', Icon: BookOpen },
+  { id: 'settings', label: 'Настройки', Icon: SettingsIcon },
 ]
-const SETTINGS_TAB = { id: 'settings', label: 'Настройки', Icon: SettingsIcon }
-const GUIDE_TAB = { id: 'guide', label: 'Гид', Icon: BookOpen }
 
 function Mobile() {
   const { canEdit } = useApp()
-  const tabs = [...(canEdit ? [CAPTURE_TAB] : []), ...BASE_TABS, SETTINGS_TAB, GUIDE_TAB]
+  const tabs = [...(canEdit ? [CAPTURE_TAB] : []), ...MAIN_TABS]
   const [tab, setTab] = useState('queue')
   const dark = tab === 'capture'
   return (
     <div className={`mobile ${dark ? 'dark' : 'light'}`}>
       {tab === 'capture' && canEdit && <Capture onOpenQueue={() => setTab('queue')} />}
-      {tab === 'queue' && <QueueList mobile />}
       {tab === 'reports' && <MobileReports />}
-      {tab === 'settings' && <Settings />}
+      {tab === 'queue' && <QueueList mobile />}
+      {tab === 'categories' && <Categories />}
       {tab === 'guide' && <Guide />}
+      {tab === 'settings' && <Settings />}
       <div className="tabbar">
         {tabs.map(({ id, label, Icon }) => (
           <button key={id} className={`tab${tab === id ? ' active' : ''}`} onClick={() => setTab(id)}>

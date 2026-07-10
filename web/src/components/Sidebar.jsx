@@ -3,11 +3,11 @@ import { useApp } from '../state.jsx'
 import { initials } from '../api.js'
 
 const NAV = [
-  { id: 'queue', label: 'Очередь' },
   { id: 'reports', label: 'Отчёты' },
+  { id: 'queue', label: 'Очередь' },
   { id: 'categories', label: 'Категории' },
-  { id: 'settings', label: 'Настройки' },
   { id: 'guide', label: 'Руководство' },
+  { id: 'settings', label: 'Настройки' },
 ]
 
 export default function Sidebar() {
