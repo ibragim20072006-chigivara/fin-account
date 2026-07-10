@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { Image } from 'lucide-react'
 import { useApp } from '../../state.jsx'
 import { fileToDataUrl } from '../../image.js'
 import NewDocument from '../NewDocument.jsx'
@@ -8,6 +9,7 @@ export default function Capture({ onOpenQueue }) {
   const [busy, setBusy] = useState(false)
   const [showNew, setShowNew] = useState(false)
   const fileRef = useRef(null)
+  const galleryRef = useRef(null)
 
   const onFile = async (e) => {
     const file = e.target.files?.[0]
@@ -44,8 +46,12 @@ export default function Capture({ onOpenQueue }) {
       {showNew && <NewDocument onClose={() => setShowNew(false)} />}
 
       <input ref={fileRef} type="file" accept="image/*" capture="environment" hidden onChange={onFile} />
+      <input ref={galleryRef} type="file" accept="image/*" hidden onChange={onFile} />
       <div className="cap-shutter-row">
-        <div className="cap-preview"><div className="cap-preview-img" /></div>
+        <button className="cap-gallery" onClick={() => galleryRef.current?.click()} disabled={busy} aria-label="Выбрать из галереи">
+          <Image size={18} />
+          <span>галерея</span>
+        </button>
         <div className="cap-shutter-wrap">
           <button className="cap-shutter" onClick={() => fileRef.current?.click()} disabled={busy} aria-label="Снять"><div /></button>
         </div>
