@@ -48,25 +48,27 @@ pm2-startup install
 `--experimental-sqlite C:\...\server\src\index.js`, рабочая папка `server`).
 
 ## 6. Доступ из интернета + HTTPS
-Пароли ходят по сети — **HTTPS обязателен**. Рекомендуется **Cloudflare Tunnel**
-(бесплатно, без проброса портов, HTTPS «из коробки»):
+Пароли ходят по сети — **HTTPS обязателен**. Используется **Tailscale Funnel** —
+постоянный публичный HTTPS-адрес без домена, проброса портов и Cloudflare (Tailscale
+на сервере уже стоит). Один раз включить Funnel в консоли `login.tailscale.com`
+(DNS: MagicDNS + HTTPS Certificates; и подтвердить Funnel для ноды), затем на сервере:
 ```
-winget install --id Cloudflare.cloudflared
-cloudflared tunnel login
-cloudflared tunnel --url http://localhost:3001
+tailscale funnel --bg 3001
 ```
-Получите публичный `https://…trycloudflare.com` (для постоянного адреса — именованный
-туннель с вашим доменом: `cloudflared tunnel create`, привязка к домену, запуск как служба).
+Публичный адрес: `https://<имя-ноды>.<tailnet>.ts.net` (сейчас
+`https://desktop-qr005ls.taild384de.ts.net`). Конфиг persists в tailscaled и поднимается
+сам при старте службы, адрес постоянный. Отключить: `tailscale funnel --https=443 off`.
 
-Альтернатива без Cloudflare: проброс порта на роутере + обратный прокси с авто-HTTPS
-(**Caddy**: `reverse_proxy localhost:3001`) на вашем домене.
+Альтернативы: Cloudflare Tunnel (`cloudflared tunnel --url http://localhost:3001` даёт
+эфемерный `*.trycloudflare.com`; постоянный — именованный туннель с доменом) либо проброс
+порта + обратный прокси с авто-HTTPS (**Caddy**: `reverse_proxy localhost:3001`).
 
 ## 7. Брандмауэр
-- С Cloudflare Tunnel наружу порт открывать **не нужно** (сервер наружу закрыт).
+- С Tailscale Funnel / Cloudflare Tunnel наружу порт открывать **не нужно** (сервер наружу закрыт).
 - При прямом доступе — открыть в брандмауэре Windows порт прокси/приложения.
 
 > Сервер настроен на работу за локальным прокси (`trust proxy = loopback`): реальный IP
-> клиента берётся из `X-Forwarded-For`, который проставляет cloudflared/Caddy. Если
+> клиента берётся из `X-Forwarded-For`, который проставляет Funnel/cloudflared/Caddy. Если
 > открывать порт напрямую в интернет (без прокси) — этот заголовок можно подделать,
 > так что прямой доступ без прокси не рекомендуется.
 
