@@ -12,6 +12,14 @@ const model = () => process.env.GIGACHAT_MODEL || 'GigaChat-2-Max'
 
 export const gigachatConfigured = () => !!authKey()
 
+// Понятное сообщение об ошибке GigaChat по HTTP-статусу (уходит в тост пользователю).
+function statusMessage(status) {
+  if (status === 402) return 'закончился баланс GigaChat — пополните в личном кабинете Сбера'
+  if (status === 429) return 'слишком много запросов к GigaChat — повторите через минуту'
+  if (status === 401 || status === 403) return 'ключ GigaChat недействителен или истёк'
+  return null
+}
+
 let cached = { token: null, exp: 0 }
 let inflight = null
 
@@ -30,7 +38,7 @@ async function getToken() {
       },
       body: `scope=${encodeURIComponent(scope())}`,
     })
-    if (!res.ok) throw new Error(`OAuth ${res.status}`)
+    if (!res.ok) throw new Error(statusMessage(res.status) || `авторизация GigaChat (${res.status})`)
     const data = await res.json()
     cached = { token: data.access_token, exp: Number(data.expires_at) || (now + 25 * 60000) }
     return cached.token
@@ -47,7 +55,7 @@ async function uploadImage(buffer, mime, token) {
     headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
     body: form,
   })
-  if (!res.ok) throw new Error(`upload ${res.status}`)
+  if (!res.ok) throw new Error(statusMessage(res.status) || `загрузка фото (${res.status})`)
   return (await res.json()).id
 }
 
@@ -61,7 +69,7 @@ async function complete(fileId, prompt, token) {
       messages: [{ role: 'user', content: prompt, attachments: [fileId] }],
     }),
   })
-  if (!res.ok) throw new Error(`chat ${res.status}`)
+  if (!res.ok) throw new Error(statusMessage(res.status) || `распознавание (${res.status})`)
   return (await res.json()).choices?.[0]?.message?.content ?? ''
 }
 
