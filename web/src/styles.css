@@ -659,7 +659,7 @@ button.legend-row:hover { background: var(--thead-bg); }
 .tabbar { display: flex; background: #fff; border-top: 1px solid var(--border); padding: 8px 0 max(6px, env(safe-area-inset-bottom)); }
 .mobile.dark .tabbar { background: #10151c; border-top-color: #232c37; }
 .tab { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; align-items: center; }
-.tab-label { font-size: 10px; font-weight: 500; letter-spacing: -.01em; white-space: nowrap; color: var(--text-3); }
+.tab-label { font-size: 10px; font-weight: 500; letter-spacing: -.01em; max-width: 100%; overflow-wrap: break-word; text-align: center; color: var(--text-3); }
 .tab svg { color: var(--text-4); }
 .tab.active .tab-label { font-weight: 600; color: var(--primary-hover); }
 .tab.active svg { color: var(--primary); }
