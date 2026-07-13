@@ -13,7 +13,7 @@ export function QueueList({ mobile = false }) {
   const [showNew, setShowNew] = useState(false)
   const [recognizing, setRecognizing] = useState(false)
   const fileRef = useRef(null)
-  const photoRef = useRef(null)
+  const galleryRef = useRef(null)
 
   const handleFile = async (e) => {
     const file = e.target.files?.[0]
@@ -25,7 +25,7 @@ export function QueueList({ mobile = false }) {
     showToast(n ? `Импортировано документов: ${n}` : 'В файле не распознаны строки (ожидается CSV выгрузки)')
   }
 
-  const handlePhoto = async (e) => {
+  const handleGallery = async (e) => {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
@@ -41,12 +41,12 @@ export function QueueList({ mobile = false }) {
 
   const addControls = canEdit && (
     <>
-      <button className={mobile ? 'mq-add' : 'queue-add'} onClick={() => photoRef.current?.click()} disabled={recognizing}>
-        {recognizing ? 'распознаю…' : 'сфотографировать'}
+      <button className={mobile ? 'mq-add' : 'queue-add'} onClick={() => galleryRef.current?.click()} disabled={recognizing}>
+        {recognizing ? 'распознаю…' : 'из галереи'}
       </button>
       <button className={mobile ? 'mq-add' : 'queue-add'} onClick={() => setShowNew(true)}>+ документ</button>
       <button className={mobile ? 'mq-add' : 'queue-add'} onClick={() => fileRef.current?.click()}>из файла</button>
-      <input ref={photoRef} type="file" accept="image/*" hidden onChange={handlePhoto} />
+      <input ref={galleryRef} type="file" accept="image/*" hidden onChange={handleGallery} />
       <input ref={fileRef} type="file" accept=".csv,text/csv" hidden onChange={handleFile} />
     </>
   )
