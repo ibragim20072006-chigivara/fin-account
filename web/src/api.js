@@ -51,7 +51,19 @@ export const api = {
   saveCategory: (cat) => req(`/categories/${cat.id}`, { method: 'PUT', body: { item: cat } }),
   deleteCategory: (id) => req(`/categories/${id}`, { method: 'DELETE' }),
 
-  recognize: (image) => req('/recognize', { method: 'POST', body: { image } }).then((r) => r.draft),
+  // Распознавание идёт ~15-40с и держит соединение открытым; на нестабильной сети запрос
+  // может оборваться («Load failed»). Один автоповтор — сервер ничего не персистит (документ
+  // добавляется только после ответа), поэтому повтор безопасен и дублей не создаёт.
+  recognize: async (image) => {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return (await req('/recognize', { method: 'POST', body: { image } })).draft
+      } catch (e) {
+        if (attempt >= 1) throw e
+        await new Promise((r) => setTimeout(r, 1500))
+      }
+    }
+  },
 }
 
 export function initials(name) {
