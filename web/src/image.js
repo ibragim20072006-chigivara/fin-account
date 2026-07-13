@@ -19,3 +19,18 @@ export function fileToDataUrl(file, maxSide = 1200, quality = 0.82) {
     img.src = url
   })
 }
+
+// Снимает текущий кадр <video> (живая камера), ужимает через canvas и возвращает JPEG data URL.
+export function videoToDataUrl(video, maxSide = 1600, quality = 0.85) {
+  const vw = video.videoWidth
+  const vh = video.videoHeight
+  if (!vw || !vh) throw new Error('Камера ещё не готова')
+  const scale = Math.min(1, maxSide / Math.max(vw, vh))
+  const w = Math.max(1, Math.round(vw * scale))
+  const h = Math.max(1, Math.round(vh * scale))
+  const canvas = document.createElement('canvas')
+  canvas.width = w
+  canvas.height = h
+  canvas.getContext('2d').drawImage(video, 0, 0, w, h)
+  return canvas.toDataURL('image/jpeg', quality)
+}

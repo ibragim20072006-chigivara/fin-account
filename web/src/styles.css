@@ -590,13 +590,12 @@ button.legend-row:hover { background: var(--thead-bg); }
 .cap-title { flex: 1; text-align: center; font-size: 15px; font-weight: 600; color: #fff; margin-left: -52px; }
 .viewfinder {
   flex: 1; margin: 6px 14px; position: relative; border-radius: 14px; overflow: hidden;
-  background: repeating-linear-gradient(45deg, #1a2027 0 10px, #151b22 10px 20px);
-  display: grid; place-items: center;
+  background: #000; display: grid; place-items: center;
 }
-.vf-label {
-  font: 500 11px var(--font-mono); color: #7c8794;
-  background: rgba(16, 21, 28, .85); border: 1px solid #2a333e; border-radius: 5px; padding: 3px 8px;
-}
+.viewfinder video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.cap-noaccess { text-align: center; padding: 0 26px; max-width: 320px; }
+.cap-noaccess-title { font-size: 15px; font-weight: 600; color: #e6ecf3; }
+.cap-noaccess-text { margin-top: 8px; font-size: 12.5px; line-height: 1.5; color: #8b96a4; }
 .vf-corner { position: absolute; width: 24px; height: 24px; }
 .vf-corner.tl { left: 16px; top: 16px; border-left: 2px solid rgba(255,255,255,.9); border-top: 2px solid rgba(255,255,255,.9); border-top-left-radius: 7px; }
 .vf-corner.tr { right: 16px; top: 16px; border-right: 2px solid rgba(255,255,255,.9); border-top: 2px solid rgba(255,255,255,.9); border-top-right-radius: 7px; }
@@ -607,17 +606,8 @@ button.legend-row:hover { background: var(--thead-bg); }
   font-size: 12px; color: #cdd8e4; background: rgba(16, 21, 28, .8);
   border-radius: 999px; padding: 5px 12px; white-space: nowrap;
 }
-.cap-chips { display: flex; gap: 8px; padding: 14px 18px 4px; justify-content: center; flex-wrap: wrap; }
-.cap-chip { font-size: 12.5px; font-weight: 500; color: #9fb0c2; border: 1px solid #2a333e; border-radius: 999px; padding: 5px 13px; }
-.cap-chip.active { color: #10151c; background: #fff; font-weight: 600; border-color: #fff; }
 .cap-shutter-row { display: flex; align-items: center; padding: 10px 30px 6px; }
-.cap-gallery {
-  width: 44px; height: 44px; flex: none; border-radius: 10px;
-  background: #1c232b; border: 1px solid #2a333e; color: #9fb0c2;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-}
-.cap-gallery span { font-size: 8.5px; font-weight: 500; line-height: 1; }
-.cap-gallery:disabled { opacity: .5; }
+.cap-shutter-side { width: 44px; flex: none; }
 .cap-shutter-wrap { flex: 1; display: flex; justify-content: center; }
 .cap-shutter {
   width: 68px; height: 68px; border-radius: 50%;
@@ -625,17 +615,7 @@ button.legend-row:hover { background: var(--thead-bg); }
 }
 .cap-shutter div { width: 54px; height: 54px; border-radius: 50%; background: #fff; transition: transform .1s; }
 .cap-shutter:active div { transform: scale(.9); }
-.cap-queue-link { width: 44px; flex: none; text-align: right; font-size: 12.5px; font-weight: 500; color: #7fb0ff; }
-.cap-progress {
-  margin: 8px 14px 10px; background: #161d26; border: 1px solid #232c37;
-  border-radius: 10px; padding: 10px 14px;
-  display: flex; flex-direction: column; gap: 7px;
-}
-.cap-progress-row { display: flex; align-items: center; gap: 8px; }
-.cap-progress-text { font-size: 12.5px; color: #aeb9c6; }
-.cap-progress-eta { font: 400 11px var(--font-mono); color: #5f6b79; margin-left: auto; }
-.cap-progress-bar { height: 4px; border-radius: 2px; background: #232c37; overflow: hidden; }
-.cap-progress-fill { height: 100%; background: var(--primary); transition: width .4s linear; }
+.cap-queue-link { text-align: right; font-size: 12.5px; font-weight: 500; color: #7fb0ff; }
 
 /* Мобильная очередь */
 .mq-head { display: flex; align-items: center; gap: 8px; padding: 12px 18px 10px; }

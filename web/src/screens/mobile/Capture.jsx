@@ -1,23 +1,46 @@
-import { useRef, useState } from 'react'
-import { Image } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../../state.jsx'
-import { fileToDataUrl } from '../../image.js'
+import { videoToDataUrl } from '../../image.js'
 import NewDocument from '../NewDocument.jsx'
 
 export default function Capture({ onOpenQueue }) {
   const { recognizeAndAdd, showToast } = useApp()
   const [busy, setBusy] = useState(false)
   const [showNew, setShowNew] = useState(false)
-  const fileRef = useRef(null)
-  const galleryRef = useRef(null)
+  const [camError, setCamError] = useState('')
+  const videoRef = useRef(null)
+  const streamRef = useRef(null)
 
-  const onFile = async (e) => {
-    const file = e.target.files?.[0]
-    e.target.value = ''
-    if (!file) return
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setCamError('Камера недоступна в этом браузере')
+        return
+      }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        })
+        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return }
+        streamRef.current = stream
+        if (videoRef.current) videoRef.current.srcObject = stream
+      } catch (err) {
+        if (!cancelled) setCamError(err?.name === 'NotAllowedError' ? 'Нет доступа к камере' : 'Камера недоступна')
+      }
+    })()
+    return () => {
+      cancelled = true
+      streamRef.current?.getTracks().forEach((t) => t.stop())
+      streamRef.current = null
+    }
+  }, [])
+
+  const shoot = async () => {
+    if (busy || camError) return
     setBusy(true)
     try {
-      await recognizeAndAdd(await fileToDataUrl(file))
+      await recognizeAndAdd(videoToDataUrl(videoRef.current))
       onOpenQueue()
     } catch (err) {
       showToast(err.message || 'Не удалось распознать документ')
@@ -34,28 +57,34 @@ export default function Capture({ onOpenQueue }) {
       </div>
 
       <div className="viewfinder">
-        <div className="vf-corner tl" />
-        <div className="vf-corner tr" />
-        <div className="vf-corner bl" />
-        <div className="vf-corner br" />
-        <div className="vf-label">{busy ? 'ИИ распознаёт документ…' : 'наведите на документ целиком'}</div>
-        <div className="vf-hint">{busy ? 'подождите несколько секунд' : 'снимок → распознавание → в очередь'}</div>
+        {camError ? (
+          <div className="cap-noaccess">
+            <div className="cap-noaccess-title">{camError}</div>
+            <div className="cap-noaccess-text">Разрешите доступ к камере в браузере, либо добавьте фото из галереи в разделе «Очередь».</div>
+          </div>
+        ) : (
+          <>
+            <video ref={videoRef} autoPlay playsInline muted />
+            <div className="vf-corner tl" />
+            <div className="vf-corner tr" />
+            <div className="vf-corner bl" />
+            <div className="vf-corner br" />
+            <div className="vf-hint">{busy ? 'ИИ распознаёт документ…' : 'наведите на документ целиком'}</div>
+          </>
+        )}
       </div>
 
       <button className="cap-manual" onClick={() => setShowNew(true)} disabled={busy}>или ввести вручную</button>
       {showNew && <NewDocument onClose={() => setShowNew(false)} />}
 
-      <input ref={fileRef} type="file" accept="image/*" capture="environment" hidden onChange={onFile} />
-      <input ref={galleryRef} type="file" accept="image/*" hidden onChange={onFile} />
       <div className="cap-shutter-row">
-        <button className="cap-gallery" onClick={() => galleryRef.current?.click()} disabled={busy} aria-label="Выбрать из галереи">
-          <Image size={18} />
-          <span>галерея</span>
-        </button>
+        <div className="cap-shutter-side" />
         <div className="cap-shutter-wrap">
-          <button className="cap-shutter" onClick={() => fileRef.current?.click()} disabled={busy} aria-label="Снять"><div /></button>
+          {!camError && (
+            <button className="cap-shutter" onClick={shoot} disabled={busy} aria-label="Снять"><div /></button>
+          )}
         </div>
-        <button className="cap-queue-link" onClick={onOpenQueue}>Очередь →</button>
+        <button className="cap-queue-link cap-shutter-side" onClick={onOpenQueue}>Очередь →</button>
       </div>
     </>
   )
