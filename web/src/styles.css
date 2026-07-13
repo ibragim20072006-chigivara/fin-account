@@ -258,6 +258,7 @@ input { font-family: inherit; }
 .verify-title { font-size: 17px; font-weight: 600; }
 .verify-sub { font-size: 12.5px; color: var(--text-2); margin-top: 3px; }
 .verify-head-actions { display: flex; gap: 8px; margin-left: auto; flex: none; }
+.verify-back { flex-basis: 100%; text-align: left; font-size: 14px; font-weight: 500; color: var(--primary-hover); padding: 0 0 6px; }
 .verify-body { flex: 1; display: flex; gap: 16px; min-height: 0; }
 
 .photo-pane {
@@ -459,6 +460,9 @@ button.legend-row:hover { background: var(--thead-bg); }
 .modal-more-sum { font: 400 12px var(--font-mono); color: var(--text-4); margin-left: auto; }
 .modal-foot { display: flex; align-items: center; gap: 12px; padding: 13px 22px; background: var(--thead-bg); }
 .modal-foot-note { font-size: 12px; color: var(--text-3); }
+.confirm-modal { width: 440px; }
+.confirm-img-wrap { padding: 16px; display: grid; place-items: center; background: var(--thead-bg); overflow: auto; }
+.confirm-img { max-width: 100%; max-height: 52vh; border-radius: 8px; display: block; }
 
 /* ===== Общий лэйаут страниц с левым списком ===== */
 .page { flex: 1; display: flex; flex-direction: column; padding: 22px 28px; min-width: 0; gap: 14px; overflow-y: auto; }
@@ -616,6 +620,21 @@ button.legend-row:hover { background: var(--thead-bg); }
 .cap-shutter div { width: 54px; height: 54px; border-radius: 50%; background: #fff; transition: transform .1s; }
 .cap-shutter:active div { transform: scale(.9); }
 .cap-queue-link { text-align: right; font-size: 12.5px; font-weight: 500; color: #7fb0ff; }
+.cap-shot { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
+.cap-busy {
+  position: absolute; inset: 0; display: grid; place-items: center; z-index: 2;
+  background: rgba(16, 21, 28, .55); color: #fff; font-size: 13px; font-weight: 500;
+}
+.cap-confirm-row { display: flex; gap: 12px; padding: 12px 18px calc(6px + env(safe-area-inset-bottom)); }
+.cap-retake {
+  flex: 1; padding: 13px 0; border-radius: 11px; font-size: 14.5px; font-weight: 500;
+  background: #1c232b; border: 1px solid #2a333e; color: #cdd8e4;
+}
+.cap-recognize {
+  flex: 2; padding: 13px 0; border-radius: 11px; font-size: 14.5px; font-weight: 600;
+  background: var(--primary); color: #fff;
+}
+.cap-retake:disabled, .cap-recognize:disabled { opacity: .5; }
 
 /* Мобильная очередь */
 .mq-head { display: flex; align-items: center; gap: 8px; padding: 12px 18px 10px; }
@@ -852,4 +871,25 @@ button.legend-row:hover { background: var(--thead-bg); }
   .settings-row-label { width: 100%; }
   .split { flex-direction: column; }
   .side-list { flex: none; max-height: 40vh; }
+
+  /* Мобильная сверка документа: панель на весь экран, строки — карточками */
+  .mobile .verify { padding: 0; overflow-y: auto; }
+  .mobile .verify-head { padding: 12px 16px; }
+  .mobile .verify-body { flex: none; flex-direction: column; gap: 12px; padding: 0 12px 16px; }
+  .mobile .photo-pane { flex: none; }
+  .mobile .photo-view { height: 280px; flex: none; }
+  .mobile .lines-pane { flex: none; overflow: visible; }
+  .mobile .lines-scroll { overflow: visible; }
+  .mobile .lines-head { display: none; }
+  .mobile .lines-grid.line-row {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; padding: 12px 14px;
+  }
+  .mobile .line-name { flex-basis: 100%; font-weight: 500; }
+  .mobile .line-num, .mobile .line-cat { text-align: left; padding: 0; }
+  .mobile .line-num[data-label]::before, .mobile .line-cat[data-label]::before {
+    content: attr(data-label) " "; color: var(--text-4); font-weight: 400;
+  }
+  .mobile .line-actions { margin-left: auto; }
+  .mobile .line-editor .nd-input { width: 100% !important; }
+  .mobile .line-editor .role-select { flex: 1; min-width: 140px; }
 }

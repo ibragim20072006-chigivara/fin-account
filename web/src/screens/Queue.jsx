@@ -12,6 +12,7 @@ export function QueueList({ mobile = false }) {
   const [filter, setFilter] = useState('all')
   const [showNew, setShowNew] = useState(false)
   const [recognizing, setRecognizing] = useState(false)
+  const [pendingImage, setPendingImage] = useState(null)
   const fileRef = useRef(null)
   const galleryRef = useRef(null)
 
@@ -25,13 +26,24 @@ export function QueueList({ mobile = false }) {
     showToast(n ? `Импортировано документов: ${n}` : 'В файле не распознаны строки (ожидается CSV выгрузки)')
   }
 
+  // Фото из галереи → превью на подтверждение; распознаём только после «Распознать».
   const handleGallery = async (e) => {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
+    try {
+      setPendingImage(await fileToDataUrl(file))
+    } catch (err) {
+      showToast(err.message || 'Не удалось прочитать изображение')
+    }
+  }
+
+  const confirmGallery = async () => {
+    if (!pendingImage) return
     setRecognizing(true)
     try {
-      await recognizeAndAdd(await fileToDataUrl(file))
+      await recognizeAndAdd(pendingImage)
+      setPendingImage(null)
     } catch (err) {
       showToast(err.message || 'Не удалось распознать документ')
     } finally {
@@ -52,6 +64,24 @@ export function QueueList({ mobile = false }) {
   )
 
   const modal = showNew && <NewDocument onClose={() => setShowNew(false)} />
+
+  const galleryConfirm = pendingImage && (
+    <div className="overlay" onClick={() => !recognizing && setPendingImage(null)}>
+      <div className="modal confirm-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <div className="modal-title">Распознать это фото?</div>
+          <div className="spacer" />
+          <button className="modal-close" onClick={() => setPendingImage(null)} disabled={recognizing}>✕</button>
+        </div>
+        <div className="confirm-img-wrap"><img className="confirm-img" src={pendingImage} alt="фото документа" /></div>
+        <div className="modal-foot">
+          <div className="spacer" />
+          <button className="btn-ghost sm" onClick={() => setPendingImage(null)} disabled={recognizing}>Отмена</button>
+          <button className="btn-primary sm" onClick={confirmGallery} disabled={recognizing}>{recognizing ? 'Распознаю…' : 'Распознать'}</button>
+        </div>
+      </div>
+    </div>
+  )
 
   const counts = useMemo(() => {
     const c = { review: 0, ready: 0 }
@@ -100,6 +130,17 @@ export function QueueList({ mobile = false }) {
   )
 
   if (mobile) {
+    // Открытый документ → сверка на весь экран (проверка/правки прямо на телефоне).
+    const openDoc = documents.find((d) => d.id === selectedDocId)
+    if (openDoc) {
+      return (
+        <>
+          <VerifyPanel doc={openDoc} onBack={() => setSelectedDocId(null)} />
+          {modal}
+          {galleryConfirm}
+        </>
+      )
+    }
     return (
       <>
         <div className="mq-head">
@@ -112,6 +153,7 @@ export function QueueList({ mobile = false }) {
         <div className="mq-list">{cards}</div>
         {batch && <div className="mq-batch">{batch}</div>}
         {modal}
+        {galleryConfirm}
       </>
     )
   }
@@ -127,6 +169,7 @@ export function QueueList({ mobile = false }) {
       <div className="queue-scroll">{cards}</div>
       {batch && <div className="queue-batch">{batch}</div>}
       {modal}
+      {galleryConfirm}
     </div>
   )
 }
@@ -216,10 +259,10 @@ function EditableLine({ doc, line, resolved, catName }) {
           {line.name}
           {resolved && <span className="line-note"> исправлено · {line.resolvedBy} {line.resolvedAt}</span>}
         </div>
-        <div className="line-num">{line.qty}</div>
-        <div className="line-num">{money(line.price)}</div>
-        <div className="line-num">{money(line.sum)}</div>
-        <div className="line-cat">{catName && <span className="cat-chip">{catName}</span>}</div>
+        <div className="line-num" data-label="Кол-во">{line.qty}</div>
+        <div className="line-num" data-label="Цена">{money(line.price)}</div>
+        <div className="line-num" data-label="Сумма">{money(line.sum)}</div>
+        <div className="line-cat" data-label="Категория">{catName && <span className="cat-chip">{catName}</span>}</div>
         <div className="line-actions">
           {canEdit && !d && <button className="line-act" title="Редактировать" onClick={start}><Pencil size={13} strokeWidth={2} /></button>}
           {canEdit && <button className="line-act" title="Удалить позицию" onClick={() => removeLine(doc.id, line.id)}><X size={14} strokeWidth={2} /></button>}
@@ -251,9 +294,9 @@ function FlaggedLine({ doc, line }) {
     <div className="line-flagged">
       <div className="lines-grid line-row">
         <div className="line-name">{line.name}</div>
-        <div className="line-num">{line.qty}</div>
-        <div className="line-num empty">—</div>
-        <div className="line-num empty">—</div>
+        <div className="line-num" data-label="Кол-во">{line.qty}</div>
+        <div className="line-num empty" data-label="Цена">—</div>
+        <div className="line-num empty" data-label="Сумма">—</div>
         <div className="line-cat"><span className="chip-red">уточнить цену</span></div>
         <div className="line-actions">
           {canEdit && <button className="line-act" title="Удалить позицию" onClick={() => removeLine(doc.id, line.id)}><X size={14} strokeWidth={2} /></button>}
@@ -276,7 +319,7 @@ function FlaggedLine({ doc, line }) {
   )
 }
 
-function VerifyPanel({ doc }) {
+function VerifyPanel({ doc, onBack }) {
   const { shipDoc, removeDocument, canEdit, categoryOfLine } = useApp()
   const status = docStatus(doc)
   const { total, unknown } = docTotal(doc)
@@ -286,6 +329,7 @@ function VerifyPanel({ doc }) {
   return (
     <div className="verify">
       <div className="verify-head">
+        {onBack && <button className="verify-back" onClick={onBack}>‹ Очередь</button>}
         <div>
           <div className="verify-title-row">
             <div className="verify-title">{doc.title}</div>

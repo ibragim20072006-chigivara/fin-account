@@ -8,6 +8,7 @@ export default function Capture({ onOpenQueue }) {
   const [busy, setBusy] = useState(false)
   const [showNew, setShowNew] = useState(false)
   const [camError, setCamError] = useState('')
+  const [preview, setPreview] = useState(null) // снятый кадр на подтверждение (dataURL)
   const videoRef = useRef(null)
   const streamRef = useRef(null)
 
@@ -36,11 +37,21 @@ export default function Capture({ onOpenQueue }) {
     }
   }, [])
 
-  const shoot = async () => {
+  // Затвор только снимает кадр — распознаём после подтверждения (экономим вызовы GigaChat).
+  const snap = () => {
     if (busy || camError) return
+    try {
+      setPreview(videoToDataUrl(videoRef.current))
+    } catch (err) {
+      showToast(err.message || 'Камера ещё не готова')
+    }
+  }
+
+  const confirm = async () => {
+    if (busy || !preview) return
     setBusy(true)
     try {
-      await recognizeAndAdd(videoToDataUrl(videoRef.current))
+      await recognizeAndAdd(preview)
       onOpenQueue()
     } catch (err) {
       showToast(err.message || 'Не удалось распознать документ')
@@ -65,27 +76,40 @@ export default function Capture({ onOpenQueue }) {
         ) : (
           <>
             <video ref={videoRef} autoPlay playsInline muted />
-            <div className="vf-corner tl" />
-            <div className="vf-corner tr" />
-            <div className="vf-corner bl" />
-            <div className="vf-corner br" />
-            <div className="vf-hint">{busy ? 'ИИ распознаёт документ…' : 'наведите на документ целиком'}</div>
+            {preview && <img className="cap-shot" src={preview} alt="снимок" />}
+            {!preview && (
+              <>
+                <div className="vf-corner tl" />
+                <div className="vf-corner tr" />
+                <div className="vf-corner bl" />
+                <div className="vf-corner br" />
+                <div className="vf-hint">наведите на документ целиком</div>
+              </>
+            )}
           </>
         )}
+        {busy && <div className="cap-busy">ИИ распознаёт документ…</div>}
       </div>
 
-      <button className="cap-manual" onClick={() => setShowNew(true)} disabled={busy}>или ввести вручную</button>
+      {!preview && <button className="cap-manual" onClick={() => setShowNew(true)} disabled={busy}>или ввести вручную</button>}
       {showNew && <NewDocument onClose={() => setShowNew(false)} />}
 
-      <div className="cap-shutter-row">
-        <div className="cap-shutter-side" />
-        <div className="cap-shutter-wrap">
-          {!camError && (
-            <button className="cap-shutter" onClick={shoot} disabled={busy} aria-label="Снять"><div /></button>
-          )}
+      {preview ? (
+        <div className="cap-confirm-row">
+          <button className="cap-retake" onClick={() => setPreview(null)} disabled={busy}>Переснять</button>
+          <button className="cap-recognize" onClick={confirm} disabled={busy}>{busy ? 'Распознаю…' : 'Распознать'}</button>
         </div>
-        <button className="cap-queue-link cap-shutter-side" onClick={onOpenQueue}>Очередь →</button>
-      </div>
+      ) : (
+        <div className="cap-shutter-row">
+          <div className="cap-shutter-side" />
+          <div className="cap-shutter-wrap">
+            {!camError && (
+              <button className="cap-shutter" onClick={snap} aria-label="Снять"><div /></button>
+            )}
+          </div>
+          <button className="cap-queue-link cap-shutter-side" onClick={onOpenQueue}>Очередь →</button>
+        </div>
+      )}
     </>
   )
 }
