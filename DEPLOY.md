@@ -83,19 +83,28 @@ pm2 restart karier
 ## Бэкапы
 Вся база — файл `server/data.db` (+ `-wal`/`-shm`). Периодически копируйте его.
 
-## Распознавание фото документов (GigaChat)
+## Распознавание фото документов (Gemini / GigaChat)
 Кнопки «сфотографировать» (десктоп «Очередь») и камера в мобильной «Съёмке» шлют фото на
-`POST /api/recognize`, сервер распознаёт его через GigaChat и возвращает документ в формате
-«+ документ». Фото не сохраняется.
-1. Зарегистрироваться на developers.sber.ru → проект «GigaChat API» → получить
-   **Authorization key** и выбрать scope (`GIGACHAT_API_PERS` — физлица, бесплатный лимит;
-   `GIGACHAT_API_B2B` — юрлица, платно; оплата картой МИР).
-2. В `server/.env` прописать `GIGACHAT_AUTH_KEY`, `GIGACHAT_SCOPE`, `GIGACHAT_MODEL`
-   (см. `server/.env.example`).
-3. Доверие к сертификатам Сбера: положить PEM корней Минцифры в `server/certs/` и указать
-   `NODE_EXTRA_CA_CERTS` (см. `server/certs/README.md`) — как переменную окружения службы
-   (в WinSW `.xml` через `<env>`), т.к. читается до старта Node.
-Без ключа распознавание вернёт 503, ручной ввод «+ документ» остаётся доступен.
+`POST /api/recognize`, сервер распознаёт его и возвращает документ в формате «+ документ».
+Фото не сохраняется. Провайдер выбирается в `server/.env` через `RECOGNIZE_PROVIDER`
+(`gemini` — по умолчанию, `gigachat` — резерв).
+
+### Gemini (основной)
+1. Получить ключ: aistudio.google.com → «Get API key».
+2. В `server/.env`: `RECOGNIZE_PROVIDER=gemini`, `GEMINI_API_KEY`; при необходимости
+   `GEMINI_MODEL` (default `gemini-2.5-flash`, для сложной рукописи точнее `gemini-2.5-pro`).
+3. Из РФ до `generativelanguage.googleapis.com` напрямую не достучаться — нужен VPN/прокси на
+   самой машине сервера. Через прокси можно завернуть, указав `GEMINI_BASE_URL`.
+
+### GigaChat (резерв, `RECOGNIZE_PROVIDER=gigachat`)
+1. developers.sber.ru → проект «GigaChat API» → **Authorization key** и scope
+   (`GIGACHAT_API_PERS` — физлица, бесплатный лимит; `GIGACHAT_API_B2B` — юрлица, платно).
+2. В `server/.env`: `GIGACHAT_AUTH_KEY`, `GIGACHAT_SCOPE`, `GIGACHAT_MODEL` (см. `.env.example`).
+3. Доверие к сертификатам Сбера: PEM корней Минцифры в `server/certs/` + `NODE_EXTRA_CA_CERTS`
+   (см. `server/certs/README.md`) — как переменную окружения службы (в WinSW `.xml` через
+   `<env>`), т.к. читается до старта Node.
+
+Без ключа выбранного провайдера распознавание вернёт 503, ручной ввод «+ документ» остаётся доступен.
 
 ## Безопасность (кратко)
 - Только HTTPS наружу (туннель/прокси).

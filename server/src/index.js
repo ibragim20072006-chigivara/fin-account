@@ -7,7 +7,7 @@ import {
   ROLES, hashPassword, verifyPassword, createSession, deleteSession,
   tokenFromReq, requireAuth, requireEditor, requireAdmin,
 } from './auth.js'
-import { recognize, gigachatConfigured } from './gigachat.js'
+import { recognize, recognizeConfigured } from './recognize.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 try { process.loadEnvFile(join(here, '..', '.env')) } catch { /* .env необязателен */ }
@@ -139,9 +139,9 @@ app.put('/api/active-template', requireEditor, (req, res) => {
   res.json({ ok: true })
 })
 
-// ===== Распознавание фото документа (GigaChat) =====
+// ===== Распознавание фото документа (провайдер выбирается в recognize.js) =====
 app.post('/api/recognize', requireEditor, async (req, res) => {
-  if (!gigachatConfigured()) return res.status(503).json({ error: 'Распознавание не настроено (нет ключа GigaChat)' })
+  if (!recognizeConfigured()) return res.status(503).json({ error: 'Распознавание не настроено (нет ключа провайдера)' })
   const m = /^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i.exec(req.body?.image || '')
   if (!m) return res.status(400).json({ error: 'Нужно изображение (data URL base64)' })
   try {
