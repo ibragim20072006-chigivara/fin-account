@@ -92,9 +92,9 @@ pm2 restart karier
 ### Gemini (основной)
 1. Получить ключ: aistudio.google.com → «Get API key».
 2. В `server/.env`: `RECOGNIZE_PROVIDER=gemini`, `GEMINI_API_KEY`; при необходимости
-   `GEMINI_MODEL` (default `gemini-3.5-flash`). Модели снимают с публикации — если пришёл 404
-   «no longer available», список доступных на ключе: `GET /v1beta/models` с `x-goog-api-key`.
-   Pro-модели на бесплатном тарифе отдают 429.
+   `GEMINI_MODEL` (default `gemini-3.1-flash-lite` — стабильна на бесплатном тарифе). Топовые
+   flash/pro часто отдают 503 (перегрузка) или 429 (квота), а снятые с публикации — 404
+   «no longer available». Список доступных на ключе: `GET /v1beta/models` с `x-goog-api-key`.
 3. Из РФ до `generativelanguage.googleapis.com` напрямую не достучаться — нужен VPN/прокси на
    самой машине сервера. Через прокси можно завернуть, указав `GEMINI_BASE_URL`.
 

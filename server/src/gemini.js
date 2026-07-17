@@ -5,7 +5,7 @@ import { buildPrompt, parseJson, normalize } from './recognize-common.js'
 // env читаем лениво: loadEnvFile вызывается после импортов.
 const base = () => process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com'
 const apiKey = () => process.env.GEMINI_API_KEY || ''
-const model = () => process.env.GEMINI_MODEL || 'gemini-3.5-flash'
+const model = () => process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite'
 
 export const geminiConfigured = () => !!apiKey()
 
