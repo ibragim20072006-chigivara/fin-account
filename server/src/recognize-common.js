@@ -2,7 +2,10 @@
 // промпт, парсинг JSON из ответа модели, нормализация в черновик формы «+ документ».
 
 export function buildPrompt(categories) {
-  const list = categories.map((c) => `- ${c.name} (${c.kind === 'income' ? 'приход' : 'расход'})`).join('\n') || '(категорий пока нет)'
+  const list = categories.map((c) => {
+    const kw = Array.isArray(c.keywords) && c.keywords.length ? ` — ключевые слова: ${c.keywords.join(', ')}` : ''
+    return `- ${c.name} (${c.kind === 'income' ? 'приход' : 'расход'})${kw}`
+  }).join('\n') || '(категорий пока нет)'
   return `На фото — первичный бухгалтерский документ (накладная/чек/акт/ведомость).
 Извлеки данные и верни СТРОГО JSON без пояснений и без markdown, по схеме:
 {"type":"накладная|чек|акт|ведомость","counterparty":"кто выставил документ","date":"дд.мм.гггг","lines":[{"name":"позиция","qty":"количество как в документе","price":число или null,"category":"имя категории из списка ниже, либо короткое имя новой"}]}

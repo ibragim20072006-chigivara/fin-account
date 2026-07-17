@@ -379,9 +379,20 @@ export function AppProvider({ children }) {
   }
 
   const removeCategory = (id) => {
+    const cat = categories.find((c) => c.id === id)
     setCategories((cats) => cats.filter((c) => c.id !== id))
     if (id === selectedCategoryId) setSelectedCategoryId(null)
     api.deleteCategory(id).catch((e) => { showToast(e.message); refetch('categories') })
+    if (cat) showToast(`Категория «${cat.name}» удалена`)
+  }
+
+  const renameCategory = (id, name) => {
+    const cat = categories.find((c) => c.id === id)
+    const next = name.trim()
+    if (!cat || !next || next === cat.name) return
+    const updated = { ...cat, name: next }
+    setCategories((cats) => cats.map((c) => (c.id === id ? updated : c)))
+    persistCat(updated)
   }
 
   // Создать категорию из ИИ-предложения / скрыть предложение.
@@ -396,6 +407,14 @@ export function AppProvider({ children }) {
     const cat = categories.find((c) => c.id === categoryId)
     if (!cat || !word || cat.keywords.includes(word)) return
     const updated = { ...cat, keywords: [...cat.keywords, word] }
+    setCategories((cats) => cats.map((c) => (c.id === categoryId ? updated : c)))
+    persistCat(updated)
+  }
+
+  const removeKeyword = (categoryId, word) => {
+    const cat = categories.find((c) => c.id === categoryId)
+    if (!cat || !cat.keywords.includes(word)) return
+    const updated = { ...cat, keywords: cat.keywords.filter((k) => k !== word) }
     setCategories((cats) => cats.map((c) => (c.id === categoryId ? updated : c)))
     persistCat(updated)
   }
@@ -418,7 +437,7 @@ export function AppProvider({ children }) {
     users, loadUsers, register, login: loginUser, logout, addUser, setUserRole, removeUser,
     resolveLine, shipDoc, shipReady, openDocInQueue,
     addDocument, addDocuments, recognizeAndAdd, updateLine, removeLine, removeDocument,
-    addCategory, removeCategory, addKeyword, setThreshold,
+    addCategory, removeCategory, renameCategory, addKeyword, removeKeyword, setThreshold,
     getCategory, categoryOfLine,
     toast, showToast,
   }), [loading, screen, documents, selectedDocId, categories, selectedCategoryId,

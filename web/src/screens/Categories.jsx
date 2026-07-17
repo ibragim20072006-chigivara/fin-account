@@ -24,9 +24,12 @@ function AiBanner() {
 }
 
 function CategoryDetail({ cat }) {
-  const { addKeyword, setThreshold, showToast, canEdit } = useApp()
+  const { addKeyword, removeKeyword, renameCategory, removeCategory, setThreshold, canEdit } = useApp()
   const [adding, setAdding] = useState(false)
   const [word, setWord] = useState('')
+  const [renaming, setRenaming] = useState(false)
+  const [nameDraft, setNameDraft] = useState('')
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
 
   const commit = () => {
     const w = word.trim()
@@ -35,20 +38,45 @@ function CategoryDetail({ cat }) {
     setAdding(false)
   }
 
+  const startRename = () => { setNameDraft(cat.name); setRenaming(true) }
+  const commitRename = () => { renameCategory(cat.id, nameDraft); setRenaming(false) }
+
   return (
     <div className="detail card">
       <div className="detail-head">
-        <div className="detail-title">{cat.name}</div>
+        {renaming ? (
+          <input
+            className="keyword-input"
+            style={{ fontSize: 15, width: 220 }}
+            autoFocus
+            value={nameDraft}
+            onChange={(e) => setNameDraft(e.target.value)}
+            onBlur={commitRename}
+            onKeyDown={(e) => { if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') setRenaming(false) }}
+          />
+        ) : (
+          <div className="detail-title">{cat.name}</div>
+        )}
         <span className="chip neutral">{cat.kind === 'income' ? 'приход' : 'расход'}</span>
         <div className="spacer" />
-        {canEdit && <button className="btn-ghost sm" onClick={() => showToast('Переименование доступно владельцу категории')}>переименовать</button>}
+        {canEdit && !renaming && (
+          <>
+            <button className="btn-ghost sm" onClick={startRename}>переименовать</button>
+            <button className="cat-delete" onClick={() => setConfirmingDelete(true)}>удалить</button>
+          </>
+        )}
       </div>
 
       <div className="field">
         <div className="section-label">КЛЮЧЕВЫЕ СЛОВА ДЛЯ ИИ</div>
         <div className="keyword-chips" style={{ marginTop: 4 }}>
           {cat.keywords.length === 0 && !canEdit && <span className="threshold-note">ключевых слов пока нет</span>}
-          {cat.keywords.map((k) => <span key={k} className="keyword">{k}</span>)}
+          {cat.keywords.map((k) => (
+            <span key={k} className="keyword">
+              {k}
+              {canEdit && <button className="keyword-del" title="Удалить" onClick={() => removeKeyword(cat.id, k)}>✕</button>}
+            </span>
+          ))}
           {canEdit && (adding ? (
             <input
               className="keyword-input"
@@ -98,6 +126,26 @@ function CategoryDetail({ cat }) {
       </div>
 
       <div className="detail-foot">правила применяются к новым документам сразу, старые не трогают</div>
+
+      {confirmingDelete && (
+        <div className="overlay" onClick={() => setConfirmingDelete(false)}>
+          <div className="modal confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <div className="modal-title">Удалить категорию «{cat.name}»?</div>
+              <div className="spacer" />
+              <button className="modal-close" onClick={() => setConfirmingDelete(false)}>✕</button>
+            </div>
+            <div className="confirm-note">
+              Строки в уже отгруженных документах потеряют эту категорию в отчётах. Действие необратимо.
+            </div>
+            <div className="modal-foot">
+              <div className="spacer" />
+              <button className="btn-ghost sm" onClick={() => setConfirmingDelete(false)}>Отмена</button>
+              <button className="btn-danger sm" onClick={() => { removeCategory(cat.id); setConfirmingDelete(false) }}>Удалить</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
