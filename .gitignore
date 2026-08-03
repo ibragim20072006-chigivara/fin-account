@@ -12,3 +12,5 @@ node_modules/
 web/dist/
 server/data.db
 server/data.db-*
+CLAUDE.md
+.claude/
